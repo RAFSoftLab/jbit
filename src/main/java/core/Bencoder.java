@@ -41,6 +41,7 @@ public class Bencoder {
     }
 
     private static BencodeElement processPieces(BencodeString piecesString) {
+
         byte[] piecesBytes = piecesString.getRawValue();
         List<String> hashes = new ArrayList<>();
 
