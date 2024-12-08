@@ -6,7 +6,7 @@ import java.io.InputStream;
 
 public class BencodeInteger extends BeElement<Long> {
 
-    private BencodeInteger(Long value) {
+    BencodeInteger(Long value) {
         super(value);
     }
 

@@ -11,7 +11,7 @@ import java.util.stream.Collectors;
 
 public class BencodeDictionary extends BeElement<Map<BencodeString, BeElement<?>>> {
 
-    public BencodeDictionary(Map<BencodeString, BeElement<?>> value) {
+    BencodeDictionary(Map<BencodeString, BeElement<?>> value) {
         super(value);
     }
 

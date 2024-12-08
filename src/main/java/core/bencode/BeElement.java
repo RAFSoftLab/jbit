@@ -8,7 +8,7 @@ public abstract class BeElement<T> {
 
     protected final T value;
 
-    public BeElement(T value) {
+    BeElement(T value) {
         this.value = value;
     }
 
