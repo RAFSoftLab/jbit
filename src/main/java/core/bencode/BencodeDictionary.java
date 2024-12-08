@@ -9,9 +9,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-public class BencodeDictionary extends BeElement<Map<BencodeString, BeElement<?>>> {
+public class BencodeDictionary extends BencodeElement<Map<BencodeString, BencodeElement<?>>> {
 
-    BencodeDictionary(Map<BencodeString, BeElement<?>> value) {
+    BencodeDictionary(Map<BencodeString, BencodeElement<?>> value) {
         super(value);
     }
 
@@ -34,7 +34,7 @@ public class BencodeDictionary extends BeElement<Map<BencodeString, BeElement<?>
                 throw new BencodeParseException(String.format("Expected 'd', got %c", prefix));
             }
 
-            Map<BencodeString, BeElement<?>> elements = new HashMap<>();
+            Map<BencodeString, BencodeElement<?>> elements = new HashMap<>();
 
             while (true) {
                 in.mark(1);
@@ -47,7 +47,7 @@ public class BencodeDictionary extends BeElement<Map<BencodeString, BeElement<?>
                 }
 
                 BencodeString key = BencodeString.parse(in);
-                BeElement<?> value = BeElement.parseElement(in);
+                BencodeElement<?> value = BencodeElement.parseElement(in);
 
                 elements.put(key, value);
             }
@@ -81,7 +81,7 @@ public class BencodeDictionary extends BeElement<Map<BencodeString, BeElement<?>
             hashes.add(bytesToHex(pieceHash));
         }
 
-        List<BeElement<?>> beElements = hashes.stream()
+        List<BencodeElement<?>> beElements = hashes.stream()
                 .map(hash -> new BencodeString(new String(hash.getBytes()), hash.getBytes()))
                 .collect(Collectors.toList());
 
@@ -111,14 +111,14 @@ public class BencodeDictionary extends BeElement<Map<BencodeString, BeElement<?>
      * @param key the key of the element
      * @return the element
      */
-    public BeElement<?> get(String key) {
+    public BencodeElement<?> get(String key) {
         return this.value.get(new BencodeString(key, key.getBytes()));
     }
 
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
-        for (Map.Entry<BencodeString, BeElement<?>> entry : this.value.entrySet()) {
+        for (Map.Entry<BencodeString, BencodeElement<?>> entry : this.value.entrySet()) {
             sb.append(entry.getKey()
                               .toString());
             sb.append(":");

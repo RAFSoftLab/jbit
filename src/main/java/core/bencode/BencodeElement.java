@@ -4,15 +4,15 @@ import exceptions.BencodeParseException;
 
 import java.io.InputStream;
 
-public abstract class BeElement<T> {
+public abstract class BencodeElement<T> {
 
     protected final T value;
 
-    BeElement(T value) {
+    BencodeElement(T value) {
         this.value = value;
     }
 
-    protected static BeElement<?> parseElement(InputStream in) {
+    protected static BencodeElement<?> parseElement(InputStream in) {
         try {
             in.mark(1);
             int prefix = in.read();

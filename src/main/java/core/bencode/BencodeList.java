@@ -6,9 +6,9 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 
-public class BencodeList extends BeElement<List<BeElement<?>>> {
+public class BencodeList extends BencodeElement<List<BencodeElement<?>>> {
 
-    BencodeList(List<BeElement<?>> value) {
+    BencodeList(List<BencodeElement<?>> value) {
         super(value);
     }
 
@@ -31,7 +31,7 @@ public class BencodeList extends BeElement<List<BeElement<?>>> {
                 throw new BencodeParseException(String.format("Expected 'l', got %c", prefix));
             }
 
-            List<BeElement<?>> elements = new ArrayList<>();
+            List<BencodeElement<?>> elements = new ArrayList<>();
 
             while (true) {
                 in.mark(1);
@@ -43,7 +43,7 @@ public class BencodeList extends BeElement<List<BeElement<?>>> {
                     break;
                 }
 
-                BeElement<?> element = BeElement.parseElement(in);
+                BencodeElement<?> element = BencodeElement.parseElement(in);
                 elements.add(element);
             }
             return new BencodeList(elements);

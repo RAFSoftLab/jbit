@@ -4,7 +4,7 @@ import exceptions.BencodeParseException;
 
 import java.io.InputStream;
 
-public class BencodeInteger extends BeElement<Long> {
+public class BencodeInteger extends BencodeElement<Long> {
 
     BencodeInteger(Long value) {
         super(value);

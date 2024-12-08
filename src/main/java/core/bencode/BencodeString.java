@@ -4,7 +4,7 @@ import exceptions.BencodeParseException;
 
 import java.io.InputStream;
 
-public class BencodeString extends BeElement<String> {
+public class BencodeString extends BencodeElement<String> {
 
     private final byte[] bytes;
 
