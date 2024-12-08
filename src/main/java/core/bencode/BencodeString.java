@@ -2,6 +2,7 @@ package core.bencode;
 
 import exceptions.BencodeParseException;
 
+import java.io.IOException;
 import java.io.InputStream;
 
 public class BencodeString extends BencodeElement<String> {
@@ -32,8 +33,9 @@ public class BencodeString extends BencodeElement<String> {
             }
 
             int length = Integer.parseInt(sb.toString());
-            byte[] buffer = new byte[length];
+            if (length == 0) return new BencodeString("", new byte[0]);
 
+            byte[] buffer = new byte[length];
             int bytesRead = in.read(buffer);
 
             if (bytesRead != length) {
@@ -42,7 +44,7 @@ public class BencodeString extends BencodeElement<String> {
 
             return new BencodeString(new String(buffer), buffer);
 
-        } catch (Exception e) {
+        } catch (IOException e) {
             throw new BencodeParseException("Error reading file", e);
         }
     }
@@ -64,6 +66,10 @@ public class BencodeString extends BencodeElement<String> {
 
     public byte[] getBytes() {
         return this.bytes;
+    }
+
+    public String getValue() {
+        return this.value;
     }
 
 }
