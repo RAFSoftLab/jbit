@@ -6,7 +6,7 @@ import java.io.InputStream;
 
 public abstract class BencodeElement<T> {
 
-    protected final T value;
+    final T value;
 
     BencodeElement(T value) {
         this.value = value;
