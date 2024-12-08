@@ -2,11 +2,12 @@ package core.bencode;
 
 import exceptions.BencodeParseException;
 
+import java.io.IOException;
 import java.io.InputStream;
 
 public class BencodeInteger extends BencodeElement<Long> {
 
-    BencodeInteger(Long value) {
+    BencodeInteger(long value) {
         super(value);
     }
 
@@ -22,8 +23,9 @@ public class BencodeInteger extends BencodeElement<Long> {
     public static BencodeInteger parse(InputStream in) {
 
         try {
-            if (in.read() != 'i') {
-                throw new BencodeParseException(String.format("Expected 'i', got %c", in.read()));
+            int prefix = in.read();
+            if (prefix != 'i') {
+                throw new BencodeParseException(String.format("Expected 'i', got %c", prefix));
             }
             StringBuilder sb = new StringBuilder();
 
@@ -31,11 +33,18 @@ public class BencodeInteger extends BencodeElement<Long> {
             while ((i = in.read()) != -1 && i != 'e') {
                 sb.append((char) i);
             }
+
+            if (i != 'e') throw new BencodeParseException(String.format("Expected 'e', got %d", i));
+
             return new BencodeInteger(Long.parseLong(sb.toString()));
 
-        } catch (Exception e) {
+        } catch (IOException e) {
             throw new BencodeParseException("Error reading file", e);
         }
+    }
+
+    public long getValue() {
+        return this.value;
     }
 
     @Override
