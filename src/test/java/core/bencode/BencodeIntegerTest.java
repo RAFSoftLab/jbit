@@ -117,6 +117,32 @@ class BencodeIntegerTest {
                                .contains("Expected 'e', got -1"));
         }
 
+        @Test
+        @DisplayName("Should throw NumberFormatException if there are no digits specified")
+        void testWithoutDigits(){
+            String input = "ie";
+
+            var in = new ByteArrayInputStream(input.getBytes());
+            var expected = NumberFormatException.class;
+
+            var ex = assertThrows(expected, () -> BencodeInteger.parse(in), "Should throw bencode parsing exception");
+            assertTrue(ex.getMessage()
+                               .contains("For input string: "));
+
+        }
+
+        @Test
+        @DisplayName("Should throws NumberFormatException if the value between prefix and suffix is not a number")
+
+        void testInvalidDigitValue(){
+            String input = "ire";
+            var in = new ByteArrayInputStream(input.getBytes());
+            var expected = NumberFormatException.class;
+
+            var ex = assertThrows(expected, () -> BencodeInteger.parse(in), "Should throw bencode parsing exception");
+            assertTrue(ex.getMessage()
+                               .contains("For input string: "));
+        }
     }
 
 }
