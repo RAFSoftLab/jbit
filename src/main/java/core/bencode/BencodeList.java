@@ -2,6 +2,7 @@ package core.bencode;
 
 import exceptions.BencodeParseException;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
@@ -28,7 +29,7 @@ public class BencodeList extends BencodeElement<List<BencodeElement<?>>> {
             int prefix = in.read();
 
             if (prefix != 'l') {
-                throw new BencodeParseException(String.format("Expected 'l', got %c", prefix));
+                throw new BencodeParseException(String.format("Expected 'l', got %d", prefix));
             }
 
             List<BencodeElement<?>> elements = new ArrayList<>();
@@ -48,7 +49,7 @@ public class BencodeList extends BencodeElement<List<BencodeElement<?>>> {
             }
             return new BencodeList(elements);
 
-        } catch (Exception e) {
+        } catch (IOException e) {
             throw new BencodeParseException("Error reading file", e);
         }
     }
@@ -62,4 +63,21 @@ public class BencodeList extends BencodeElement<List<BencodeElement<?>>> {
     }
 
 
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) {
+            return true;
+        }
+
+        if(obj instanceof BencodeList other){
+            return value.equals(other.value);
+        }
+
+        return false;
+    }
+
+    @Override
+    public int hashCode() {
+        return value.hashCode();
+    }
 }

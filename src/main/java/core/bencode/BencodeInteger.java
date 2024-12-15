@@ -52,5 +52,21 @@ public class BencodeInteger extends BencodeElement<Long> {
         return this.value.toString();
     }
 
+    @Override
+    public boolean equals(Object obj) {
+        if(this == obj){
+            return true;
+        }
+        if(obj instanceof BencodeInteger other){
+            return this.value.equals(other.value);
+        }
 
+        return false;
+    }
+
+
+    @Override
+    public int hashCode() {
+        return this.value.hashCode();
+    }
 }

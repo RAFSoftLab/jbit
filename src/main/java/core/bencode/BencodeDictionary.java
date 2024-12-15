@@ -2,6 +2,7 @@ package core.bencode;
 
 import exceptions.BencodeParseException;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -31,7 +32,7 @@ public class BencodeDictionary extends BencodeElement<Map<BencodeString, Bencode
             int prefix = in.read();
 
             if (prefix != 'd') {
-                throw new BencodeParseException(String.format("Expected 'd', got %c", prefix));
+                throw new BencodeParseException(String.format("Expected 'd', got %d", prefix));
             }
 
             Map<BencodeString, BencodeElement<?>> elements = new HashMap<>();
@@ -46,6 +47,10 @@ public class BencodeDictionary extends BencodeElement<Map<BencodeString, Bencode
                     break;
                 }
 
+                if(peek == -1){
+                    throw new BencodeParseException("Unexpected end of file");
+                }
+
                 BencodeString key = BencodeString.parse(in);
                 BencodeElement<?> value = BencodeElement.parseElement(in);
 
@@ -53,7 +58,7 @@ public class BencodeDictionary extends BencodeElement<Map<BencodeString, Bencode
             }
             return new BencodeDictionary(elements);
 
-        } catch (Exception e) {
+        } catch (IOException e) {
             throw new BencodeParseException("Error reading file", e);
         }
     }
@@ -128,6 +133,24 @@ public class BencodeDictionary extends BencodeElement<Map<BencodeString, Bencode
         }
 
         return sb.toString();
+    }
+
+    public int size(){
+        return this.value.size();
+    }
+
+
+    @Override
+    public boolean equals(Object obj) {
+        if(obj instanceof BencodeDictionary other){
+            return this.value.equals(other.value);
+        }
+        return false;
+    }
+
+    @Override
+    public int hashCode() {
+        return this.value.hashCode();
     }
 
 }
