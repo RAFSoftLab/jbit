@@ -2,10 +2,12 @@ package core.bencode;
 
 import exceptions.BencodeParseException;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.security.MessageDigest;
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -35,7 +37,7 @@ public class BencodeDictionary extends BencodeElement<Map<BencodeString, Bencode
                 throw new BencodeParseException(String.format("Expected 'd', got %d", prefix));
             }
 
-            Map<BencodeString, BencodeElement<?>> elements = new HashMap<>();
+            Map<BencodeString, BencodeElement<?>> elements = new LinkedHashMap<>();
 
             while (true) {
                 in.mark(1);
@@ -47,7 +49,7 @@ public class BencodeDictionary extends BencodeElement<Map<BencodeString, Bencode
                     break;
                 }
 
-                if(peek == -1){
+                if (peek == -1) {
                     throw new BencodeParseException("Unexpected end of file");
                 }
 
@@ -61,6 +63,21 @@ public class BencodeDictionary extends BencodeElement<Map<BencodeString, Bencode
         } catch (IOException e) {
             throw new BencodeParseException("Error reading file", e);
         }
+    }
+
+    private static int compareBencodeStringByBytes(BencodeString a, BencodeString b) {
+        // Compare raw bytes
+        byte[] aBytes = a.getBytes();
+        byte[] bBytes = b.getBytes();
+
+        int minLen = Math.min(aBytes.length, bBytes.length);
+        for (int i = 0; i < minLen; i++) {
+            int diff = (aBytes[i] & 0xff) - (bBytes[i] & 0xff);
+            if (diff != 0) {
+                return diff;
+            }
+        }
+        return aBytes.length - bBytes.length;
     }
 
     /**
@@ -91,8 +108,6 @@ public class BencodeDictionary extends BencodeElement<Map<BencodeString, Bencode
                 .collect(Collectors.toList());
 
         return new BencodeList(beElements);
-
-
     }
 
     /**
@@ -109,6 +124,59 @@ public class BencodeDictionary extends BencodeElement<Map<BencodeString, Bencode
         return sb.toString();
     }
 
+    public String getInfoHash() {
+        BencodeDictionary info = (BencodeDictionary) this.value.get(new BencodeString("info", "info".getBytes()));
+        return toSha1(info.encode());
+    }
+
+    @Override
+    public byte[] encode() {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+
+        out.write('d');
+        this.value.forEach((key, value1) -> {
+            try {
+                byte[] keyBytes = key.encode();
+                out.write(keyBytes);
+
+                byte[] valBytes = value1.encode();
+                out.write(valBytes);
+            } catch (IOException ex) {
+                throw new RuntimeException("Error encoding dictionary entry", ex);
+            }
+        });
+
+        out.write('e');
+
+        return out.toByteArray();
+    }
+
+    @Override
+    public Map<BencodeString, BencodeElement<?>> getValue() {
+        return this.value;
+    }
+
+    private String toSha1(byte[] bytes) {
+        try {
+            MessageDigest sha1 = MessageDigest.getInstance("SHA-1");
+            byte[] sha1Bytes = sha1.digest(bytes);
+
+            StringBuilder sb = new StringBuilder();
+            for (byte b : sha1Bytes) {
+                if ((b >= 0x30 && b <= 0x39) || // 0-9
+                        (b >= 0x41 && b <= 0x5A) || // A-Z
+                        (b >= 0x61 && b <= 0x7A) || // a-z
+                        b == '.' || b == '-' || b == '_' || b == '~') {
+                    sb.append((char) b);
+                } else {
+                    sb.append(String.format("%%%02X", b & 0xFF));
+                }
+            }
+            return sb.toString();
+        } catch (Exception e) {
+            throw new BencodeParseException("Error converting hash to bytes", e);
+        }
+    }
 
     /**
      * Retrieves bencode element from the dictionary
@@ -119,6 +187,37 @@ public class BencodeDictionary extends BencodeElement<Map<BencodeString, Bencode
     public BencodeElement<?> get(String key) {
         return this.value.get(new BencodeString(key, key.getBytes()));
     }
+
+    public <T> T get(String key, Class<T> tClass) {
+        BencodeElement<?> element = this.value.get(new BencodeString(key, key.getBytes()));
+        return element != null ? tClass.cast(element.getValue()) : null;
+    }
+
+//    public Map<String, String> getAsMap(String key){
+//        return this.value.get(new BencodeString(key, key.getBytes())).getValue();
+//    }
+
+    public String getAsString(String key) {
+        System.out.println("getting key: " + key);
+
+        BencodeElement<?> value = this.value.get(new BencodeString(key, key.getBytes()));
+        return value != null ? (String) value.getValue() : null;
+    }
+
+    public long getAsLong(String key) {
+        return (long) (this.value.get(new BencodeString(key, key.getBytes()))
+                .getValue());
+    }
+
+    public int getAsInt(String key) {
+
+        return (int) (this.value.get(new BencodeString(key, key.getBytes()))
+                .getValue());
+    }
+
+//    public <T> BencodeElement<T> get(String key) {
+//        return (BencodeElement<T>) this.value.get(new BencodeString(key, key.getBytes()));
+//    }
 
     @Override
     public String toString() {
@@ -135,14 +234,14 @@ public class BencodeDictionary extends BencodeElement<Map<BencodeString, Bencode
         return sb.toString();
     }
 
-    public int size(){
+    public int size() {
         return this.value.size();
     }
 
 
     @Override
     public boolean equals(Object obj) {
-        if(obj instanceof BencodeDictionary other){
+        if (obj instanceof BencodeDictionary other) {
             return this.value.equals(other.value);
         }
         return false;
