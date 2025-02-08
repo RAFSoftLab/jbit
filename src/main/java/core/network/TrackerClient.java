@@ -2,11 +2,7 @@ package core.network;
 
 public interface TrackerClient {
 
-    TrackerNetworkResponse connect(TrackerNetworkRequest request);
-
-    void announce();
+    TrackerNetworkResponse announce(TrackerNetworkRequest request);
 
     void scrape();
-
-    void close();
 }

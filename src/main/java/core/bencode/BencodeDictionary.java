@@ -129,6 +129,21 @@ public class BencodeDictionary extends BencodeElement<Map<BencodeString, Bencode
         return toSha1(info.encode());
     }
 
+    public byte[] getInfoHashBytes(){
+        BencodeDictionary info = (BencodeDictionary) this.value.get(new BencodeString("info", "info".getBytes()));
+        return sha1(info.encode());
+    }
+
+    public byte[] sha1(byte[] bytes){
+        try {
+            MessageDigest sha1 = MessageDigest.getInstance("SHA-1");
+            return sha1.digest(bytes);
+        } catch (Exception e) {
+            throw new BencodeParseException("Error converting hash to bytes", e);
+        }
+
+    }
+
     @Override
     public byte[] encode() {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
@@ -193,10 +208,6 @@ public class BencodeDictionary extends BencodeElement<Map<BencodeString, Bencode
         return element != null ? tClass.cast(element.getValue()) : null;
     }
 
-//    public Map<String, String> getAsMap(String key){
-//        return this.value.get(new BencodeString(key, key.getBytes())).getValue();
-//    }
-
     public String getAsString(String key) {
         System.out.println("getting key: " + key);
 
@@ -208,16 +219,6 @@ public class BencodeDictionary extends BencodeElement<Map<BencodeString, Bencode
         return (long) (this.value.get(new BencodeString(key, key.getBytes()))
                 .getValue());
     }
-
-    public int getAsInt(String key) {
-
-        return (int) (this.value.get(new BencodeString(key, key.getBytes()))
-                .getValue());
-    }
-
-//    public <T> BencodeElement<T> get(String key) {
-//        return (BencodeElement<T>) this.value.get(new BencodeString(key, key.getBytes()));
-//    }
 
     @Override
     public String toString() {

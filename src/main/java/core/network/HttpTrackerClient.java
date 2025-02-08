@@ -8,7 +8,6 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
-import java.util.List;
 
 public class HttpTrackerClient implements TrackerClient {
 
@@ -24,17 +23,11 @@ public class HttpTrackerClient implements TrackerClient {
 
 
     @Override
-    public TrackerNetworkResponse connect(TrackerNetworkRequest request) {
+    public TrackerNetworkResponse announce(TrackerNetworkRequest request) {
         try {
-            List<String> s = request.getAnnounceList()
-                    .stream()
-                    .filter(x -> x.startsWith("http://tracker.opentrackr.org:1337"))
-                    .toList();
-            System.out.println(URI.create(request.getURL(s.getFirst()))
-                                       .toString());
 
             HttpRequest httpRequest = HttpRequest.newBuilder()
-                    .uri(URI.create(request.getURL(s.getFirst())))
+                    .uri(URI.create(request.getURL()))
                     .timeout(Duration.ofSeconds(30))
                     .header("Content-Type", "application/x-www-form-urlencoded")
                     .GET()
@@ -54,7 +47,7 @@ public class HttpTrackerClient implements TrackerClient {
     private boolean sendAnnounceRequest(String url, TrackerNetworkRequest request) {
         try {
             HttpRequest httpRequest = HttpRequest.newBuilder()
-                    .uri(URI.create(request.getURL(url)))
+                    .uri(URI.create(request.getURL()))
                     .timeout(Duration.ofSeconds(10))
                     .header("Content-Type", "application/x-www-form-urlencoded")
                     .GET()
@@ -71,18 +64,8 @@ public class HttpTrackerClient implements TrackerClient {
     }
 
     @Override
-    public void announce() {
-
-    }
-
-    @Override
     public void scrape() {
         System.out.println("Scraping tracker via HTTP");
-    }
-
-    @Override
-    public void close() {
-        System.out.println("Closing connection to tracker via HTTP");
     }
 
 

@@ -3,11 +3,14 @@ package core.network;
 import core.bencode.TorrentFile;
 
 import java.lang.reflect.Field;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class TrackerNetworkRequest {
 
     public final String info_hash;
+    private final byte[] infoHashBytes;
     public final String peer_id;
     public final int port;
     public final long uploaded;
@@ -17,6 +20,8 @@ public class TrackerNetworkRequest {
     public final String event;
     private final String announceUrl;
     private final List<String> announceList;
+    private final AtomicInteger urlIndex = new AtomicInteger(-1);
+    private final List<String> urls;
 
     private TrackerNetworkRequest(Builder builder) {
         this.info_hash = builder.infoHash;
@@ -29,33 +34,36 @@ public class TrackerNetworkRequest {
         this.compact = builder.compact;
         this.event = builder.event;
         this.announceList = builder.announceList;
+        this.urls = createUrls();
+        this.infoHashBytes = builder.infoHashBytes;
     }
 
-    public static TrackerNetworkRequest of(TorrentFile torrent){
-        return new Builder()
-                .announceUrl(torrent.getAnnounceList().getFirst())
-                .peerId("12345678901234567890")
+    public static TrackerNetworkRequest of(TorrentFile torrent) {
+        return new Builder().announceUrl(torrent.getAnnounceList()
+                                                 .getFirst())
+                .peerId("MFLJDCEACGABLBFDIGPF")
                 .port(6881)
                 .uploaded(0)
                 .downloaded(0)
                 .left(39763640)
                 .compact(1)
                 .infoHash(torrent.getInfoHash())
+                .infoHashBytes(torrent.getInfoHashBytes())
                 .announceList(torrent.getAnnounceList())
                 .build();
     }
 
-    public String getURL(String announceUrl) {
+    public String getURL() {
 
         StringBuilder sb = new StringBuilder();
-        sb.append(announceUrl);
+        sb.append(getUrl());
         sb.append("?");
         Field[] fields = this.getClass()
                 .getFields();
 
         for (Field field : fields) {
             try {
-                if(field.get(this) == null) continue;
+                if (field.get(this) == null) continue;
                 sb.append(field.getName());
                 sb.append("=");
                 sb.append(field.get(this));
@@ -67,8 +75,33 @@ public class TrackerNetworkRequest {
         return sb.toString();
     }
 
-    public String getAnnounceUrl() {
-        return announceUrl;
+    public void resolveNextUrl() {
+        urlIndex.incrementAndGet();
+        if(urlIndex.get() >= urls.size()) urlIndex.set(0);
+    }
+
+    public String getUrl(){
+        int index = urlIndex.get();
+        return index <= 0 ? announceUrl : announceList.get(urlIndex.get());
+    }
+
+    public byte[] getInfoHashBytes() {
+        return infoHashBytes;
+    }
+
+    private List<String> createUrls(){
+        List<String> urls = new ArrayList<>(announceList);
+        urls.addFirst(announceUrl);
+        return urls;
+    }
+
+    public String getTrackerPort(){
+        return urls.get(urlIndex.get())
+                .split(":")[2];
+    }
+
+    public List<String> getUrls(){
+        return urls;
     }
 
     public String getPeerId() {
@@ -106,6 +139,7 @@ public class TrackerNetworkRequest {
     public static class Builder {
 
         private String infoHash;
+        private byte[] infoHashBytes;
         private String announceUrl;
         private String peerId;
         private int port;
@@ -118,6 +152,11 @@ public class TrackerNetworkRequest {
 
         public Builder infoHash(String infoHash) {
             this.infoHash = infoHash;
+            return this;
+        }
+
+        public Builder infoHashBytes(byte[] infoHashBytes) {
+            this.infoHashBytes = infoHashBytes;
             return this;
         }
 
