@@ -8,6 +8,9 @@ public abstract class BencodeElement<T> {
 
     final T value;
 
+
+    public abstract T getValue();
+
     BencodeElement(T value) {
         this.value = value;
     }
@@ -29,5 +32,7 @@ public abstract class BencodeElement<T> {
             throw new BencodeParseException("Error reading file", e);
         }
     }
+
+    public abstract byte[] encode();
 
 }

@@ -2,8 +2,11 @@ package core.bencode;
 
 import exceptions.BencodeParseException;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 
 public class BencodeString extends BencodeElement<String> {
 
@@ -50,8 +53,19 @@ public class BencodeString extends BencodeElement<String> {
     }
 
     @Override
+    public byte[] encode() {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        byte[] lengthBytes = String.valueOf(bytes.length).getBytes(StandardCharsets.US_ASCII);
+        out.write(lengthBytes, 0, lengthBytes.length);
+        out.write(':');
+        out.write(bytes, 0, bytes.length);
+
+        return out.toByteArray();
+    }
+
+    @Override
     public boolean equals(Object obj) {
-        return obj instanceof BencodeString && this.value.equals(((BencodeString) obj).value);
+        return obj instanceof BencodeString && this.value.equals(((BencodeString) obj).value) && Arrays.equals(this.bytes, ((BencodeString) obj).bytes);
     }
 
     @Override
@@ -68,6 +82,7 @@ public class BencodeString extends BencodeElement<String> {
         return this.bytes;
     }
 
+    @Override
     public String getValue() {
         return this.value;
     }

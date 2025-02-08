@@ -2,8 +2,10 @@ package core.bencode;
 
 import exceptions.BencodeParseException;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 
 public class BencodeInteger extends BencodeElement<Long> {
 
@@ -43,7 +45,18 @@ public class BencodeInteger extends BencodeElement<Long> {
         }
     }
 
-    public long getValue() {
+    @Override
+    public byte[] encode() {
+        ByteArrayOutputStream os = new ByteArrayOutputStream();
+        os.write('i');
+        byte[] numberBytes = String.valueOf(value).getBytes(StandardCharsets.US_ASCII);
+        os.write(numberBytes, 0, numberBytes.length);
+        os.write('e');
+        return os.toByteArray();
+    }
+
+    @Override
+    public Long getValue() {
         return this.value;
     }
 

@@ -2,6 +2,7 @@ package core.bencode;
 
 import exceptions.BencodeParseException;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -55,6 +56,30 @@ public class BencodeList extends BencodeElement<List<BencodeElement<?>>> {
     }
 
     @Override
+    public byte[] encode() {
+
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        try {
+            out.write('l');
+            for (BencodeElement<?> element : this.value) {
+                byte[] encodedElement = element.encode();
+                out.write(encodedElement);
+            }
+            out.write('e');
+
+        } catch (IOException e) {
+            throw new BencodeParseException("Error reading file", e);
+        }
+
+        return out.toByteArray();
+    }
+
+    @Override
+    public List<BencodeElement<?>> getValue() {
+        return this.value;
+    }
+
+    @Override
     public String toString() {
         return this.value.stream()
                 .map(Object::toString)
@@ -69,7 +94,7 @@ public class BencodeList extends BencodeElement<List<BencodeElement<?>>> {
             return true;
         }
 
-        if(obj instanceof BencodeList other){
+        if (obj instanceof BencodeList other) {
             return value.equals(other.value);
         }
 
