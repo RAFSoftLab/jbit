@@ -2,7 +2,7 @@ package core;
 
 import core.bencode.TorrentFile;
 import core.network.Peer;
-import core.network.TrackerNetworkResponse;
+import piece.TasksContext;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -12,15 +12,91 @@ import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class PeerConnection {
 
     private static final int HANDSHAKE_SIZE = 68;
     private static final int CONNECTION_TIMEOUT_MS = 5000; // 5 seconds
-    private static final int PIECE_SIZE = 16 * 1024; // 16 KB
+    private static final int PIECE_SIZE = 16 * 1024;// 16 KB
 
-    public void sendHandshake(TorrentFile torrentFile, TrackerNetworkResponse response) throws IOException {
-        List<Peer> peers = response.getPeers();
+    private final Peer peer;
+    private final TasksContext tasks;
+    private final TorrentFile torrentFile;
+    private final SocketChannel channel;
+    private final ByteBuffer readBuffer = ByteBuffer.allocate(PIECE_SIZE * 2);
+
+    private BitSet bitField;
+
+    private int amChoking = 1;
+    private int amInterested = 0;
+    private int peerChoking = 1;
+    private int peerInterested = 0;
+
+    public PeerConnection(Peer peer, TorrentFile torrentFile, SocketChannel channel) {
+        this.peer = peer;
+        this.torrentFile = torrentFile;
+        this.channel = channel;
+        this.tasks = new TasksContext(new ConcurrentLinkedQueue<>(), new ArrayBlockingQueue<>(50));
+        this.bitField = new BitSet(torrentFile.getInfo().getPiecesStorage().size());
+    }
+
+    public ByteBuffer getBuffer() {
+        return readBuffer;
+    }
+
+    public SocketChannel getChannel() {
+        return channel;
+    }
+
+    public TorrentFile getTorrentFile() {
+        return torrentFile;
+    }
+
+    public TasksContext getTasks() {
+        return tasks;
+    }
+
+    public BitSet getBitField() {
+        return this.bitField;
+    }
+
+    public void setBitField(BitSet bitField) {
+        this.bitField = bitField;
+    }
+
+    public boolean havePiece(int pieceIndex) {
+        if (bitField == null) return false;
+        return bitField.get(pieceIndex);
+    }
+
+
+    public void setAmChoking(int amChoking) {
+        this.amChoking = amChoking;
+    }
+
+    public void setPeerInterested(int peerInterested) {
+        this.peerInterested = peerInterested;
+    }
+
+    public int getPeerChoking() {
+        return this.peerChoking;
+    }
+
+    public void setPeerChoking(int peerChoking) {
+        this.peerChoking = peerChoking;
+    }
+
+    public int getAmInterested() {
+        return this.amInterested;
+    }
+
+    public void setAmInterested(int amInterested) {
+        this.amInterested = amInterested;
+    }
+
+    public void sendHandshake(TorrentFile torrentFile, List<Peer> peers) throws IOException {
         Selector selector = Selector.open();
 
         Map<SocketChannel, Peer> peerMap = new HashMap<>();
@@ -164,5 +240,7 @@ public class PeerConnection {
         }
     }
 
-
+    public void setPieceIndex(int pieceIndex) {
+        bitField.set(pieceIndex);
+    }
 }

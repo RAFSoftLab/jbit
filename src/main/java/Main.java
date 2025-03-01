@@ -6,6 +6,9 @@ import core.network.HttpTrackerClient;
 import core.network.TrackerManager;
 import core.network.TrackerNetworkRequest;
 import core.network.TrackerNetworkResponse;
+import piece.Handshake;
+import piece.HandshakeClient;
+import piece.TorrentManager;
 
 import java.io.BufferedInputStream;
 import java.io.FileInputStream;
@@ -17,7 +20,7 @@ public class Main {
     public static void main(String[] args) {
 
         try (Bencoder bencoder = new Bencoder(
-                new BufferedInputStream(new FileInputStream("src/main/resources/torrentFiles/test3.torrent")))) {
+                new BufferedInputStream(new FileInputStream("src/main/resources/torrentFiles/test5.torrent")))) {
 
             BencodeDictionary dictionary = bencoder.decode();
 
@@ -37,10 +40,9 @@ public class Main {
             TrackerManager manager = new TrackerManager();
             TrackerNetworkResponse announce = manager.announce(torrentFile);
 
-
-            PeerConnection peerConnection = new PeerConnection();
-            peerConnection.sendHandshake(torrentFile, announce);
-
+            TorrentManager torrentManager = new TorrentManager();
+            torrentManager.addTorrentPeers(torrentFile, announce.getPeers());
+            torrentManager.init();
 
         } catch (Exception e) {
             e.printStackTrace();

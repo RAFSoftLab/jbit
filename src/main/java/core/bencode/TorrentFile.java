@@ -1,6 +1,10 @@
 package core.bencode;
 
+import common.TorrentState;
+import storage.PieceStorage;
+
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 
 public class TorrentFile extends BencodeDictionary {
@@ -21,6 +25,7 @@ public class TorrentFile extends BencodeDictionary {
     private final String createdBy;
     private final String encoding;
     private final Info info;
+    private TorrentState state;
 
 
     public TorrentFile(BencodeDictionary dictionary) {
@@ -44,6 +49,13 @@ public class TorrentFile extends BencodeDictionary {
 
     }
 
+    public TorrentState getTorrentState() {
+        return state;
+    }
+
+    public void setTorrentState(TorrentState state) {
+        this.state = state;
+    }
 
     public Info getInfo() {
         return info;
@@ -87,11 +99,10 @@ public class TorrentFile extends BencodeDictionary {
         private final Long pieceLength;
         private final String pieces;
         private final Integer privateTorrent;
-        private final String md5sum;
         private final String name;
-        private final String path;
-        private final Long length;
-        private final List<Info> files;
+        private final List<Files> files;
+        private final List<PieceStorage> piecesStorage;
+
 
         public Info(BencodeDictionary info) {
 
@@ -100,24 +111,40 @@ public class TorrentFile extends BencodeDictionary {
             this.files = files != null ? files.getValue()
                     .stream()
                     .map(BencodeDictionary.class::cast)
-                    .map(Info::new)
+                    .map(Files::new)
                     .toList() : null;
 
-            this.name = info.get(NAME, String.class);
             this.pieceLength = info.get(PIECE_LENGTH, Long.class);
             this.pieces = info.get(PIECES, String.class);
+            this.piecesStorage = processPieces((BencodeString) info.get(PIECES));
             this.privateTorrent = info.get(PRIVATE, Integer.class) == null ? 1 : 0;
-            this.md5sum = info.get(MD5SUM, String.class);
-            this.length = info.get(LENGTH, Long.class);
-            this.path = info.get(PATH) != null ? ((BencodeList) info.get(PATH)).getValue()
-                    .stream()
-                    .map(BencodeString.class::cast)
-                    .map(BencodeString::getValue)
-                    .reduce("", (a, b) -> a + "/" + b) : null;
+            this.name = info.getAsString(NAME);
+
         }
 
-        public Long getLength() {
-            return length;
+        private List<PieceStorage> processPieces(BencodeString piecesString) {
+
+            byte[] piecesBytes = piecesString.getBytes();
+            List<PieceStorage> pieces = new ArrayList<>();
+
+            int index = 0;
+
+            for (int i = 0; i < piecesBytes.length; i += 20) {
+                if (i + 20 > piecesBytes.length) {
+                    throw new IllegalArgumentException("Invalid pieces length: not a multiple of 20 bytes");
+                }
+
+                byte[] pieceHash = new byte[20];
+                System.arraycopy(piecesBytes, i, pieceHash, 0, 20);
+                PieceStorage piece = new PieceStorage(index++, pieceLength.intValue(), pieceHash);
+                pieces.add(piece);
+            }
+
+            return pieces;
+        }
+
+        public List<PieceStorage> getPiecesStorage() {
+            return piecesStorage;
         }
 
         public long getPieceLength() {
@@ -132,20 +159,41 @@ public class TorrentFile extends BencodeDictionary {
             return privateTorrent;
         }
 
-        public String getMd5sum() {
-            return md5sum;
-        }
-
-        public String getPath() {
-            return path;
-        }
-
-        public List<Info> getFiles() {
+        public List<Files> getFiles() {
             return files;
         }
 
         public String getName() {
             return name;
+        }
+
+        public static class Files {
+
+            private final Long length;
+            private final String md5sum;
+            private final String path;
+
+            public Files(BencodeDictionary dict) {
+                this.length = dict.get(LENGTH, Long.class);
+                this.md5sum = dict.get(MD5SUM, String.class);
+                this.path = dict.get(PATH) != null ? ((BencodeList) dict.get(PATH)).getValue()
+                        .stream()
+                        .map(BencodeString.class::cast)
+                        .map(BencodeString::getValue)
+                        .reduce("", (a, b) -> a + "/" + b) : null;
+            }
+
+            public Long getLength() {
+                return length;
+            }
+
+            public String getMd5sum() {
+                return md5sum;
+            }
+
+            public String getPath() {
+                return path;
+            }
         }
     }
 
