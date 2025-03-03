@@ -1,6 +1,7 @@
 package piece;
 
 import core.PeerConnection;
+import storage.PieceStorage;
 
 import java.nio.ByteBuffer;
 
@@ -29,8 +30,15 @@ public class Piece extends Message {
         assert buffer.remaining() == length - 9;
         byte[] block = new byte[buffer.remaining()];
         buffer.get(block);
-        peerConnection.getTorrentFile().getInfo().getPiecesStorage().get(index).updateBlock(begin,block);
-        System.out.println("downloaded piece: " + index + " begin: " + begin + " length: " + block.length);
+        PieceStorage pieceStorage = peerConnection.getTorrentFile()
+                .getInfo()
+                .getPiecesStorage()
+                .get(index);
+        assert pieceStorage.getIndex() == index;
+        if(!pieceStorage.updateBlock(begin,block)){
+            System.out.println("BLOCK NOT FOUND");
+        }
+        System.out.println("downloaded piece: " + index + " begin: " + begin + " length: " + block.length + " of total " + peerConnection.getTorrentFile().getInfo().getPieceLength());
         return false;
     }
 

@@ -84,9 +84,8 @@ public class UdpTrackerClient implements TrackerClient {
 
         } catch (Exception e) {
             e.printStackTrace();
-        } finally {
-            socket.close();
         }
+
         throw new RuntimeException("Failed to connect to tracker via UDP");
 
     }
@@ -133,6 +132,7 @@ public class UdpTrackerClient implements TrackerClient {
                 lastAnnounce = Instant.now();
                 return responseBuffer.getLong(8);
             }
+            System.out.println("DOSO OVDE");
             throw new RuntimeException("Failed to connect to tracker via UDP");
 
         } catch (Exception e) {

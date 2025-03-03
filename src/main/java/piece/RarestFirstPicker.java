@@ -4,46 +4,34 @@ import core.PeerConnection;
 import core.bencode.TorrentFile;
 import storage.PieceStorage;
 
-import java.util.Arrays;
-import java.util.BitSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class RarestFirstPicker implements PiecePicker {
 
     private final Map<TorrentFile, List<PeerConnection>> torrentConnections;
     private final Map<TorrentFile, PieceStorage> torrentPieces;
-    private final Map<TorrentFile, List<Integer>> alreadyDownloadedPieces;
 
     public RarestFirstPicker(Map<TorrentFile, List<PeerConnection>> torrentConnections) {
         this.torrentConnections = torrentConnections;
         this.torrentPieces = new ConcurrentHashMap<>();
-        this.alreadyDownloadedPieces = new ConcurrentHashMap<>();
     }
 
     public synchronized PieceStorage find(TorrentFile torrentFile) {
         try {
-            PieceStorage piece = torrentPieces.get(torrentFile);
-            List<Integer> downloadedPieces = alreadyDownloadedPieces.get(torrentFile);
-
-            if (piece != null && piece.isVerified()) {
-                downloadedPieces.add(piece.getIndex());
-            }
-
-            if (piece != null && !piece.isVerified()) {
-                return piece;
-            }
-
+            PieceStorage currentPiece = torrentPieces.get(torrentFile);
             List<PeerConnection> peers = torrentConnections.get(torrentFile);
+            Set<Integer> downloadedPieces = torrentFile.getInfo()
+                    .getDownloadedPieces();
 
-            BitSet bitSet = peers.getFirst()
-                    .getBitField();
+            if (currentPiece != null && currentPiece.isVerified()) {
+                downloadedPieces.add(currentPiece.getIndex());
+            }
 
-            int size = bitSet.size();
-
-            if (bitSet == null) {
-                throw new RuntimeException("BitField should not be null");
+            if (currentPiece != null && !currentPiece.isVerified()) {
+                return currentPiece;
             }
 
             int totalPieces = torrentFile.getInfo()
@@ -66,29 +54,19 @@ public class RarestFirstPicker implements PiecePicker {
 
             for (int i = 0; i < pieces.length; i++) {
                 int pieceAmount = pieces[i];
-                int finalI = i;
-                if (pieceAmount > 0 && pieceAmount < rarest && downloadedPieces.stream().noneMatch(idx -> idx == finalI)) {
+                if (pieceAmount > 0 && pieceAmount < rarest && !downloadedPieces.contains(i)) {
                     rarest = pieceAmount;
                     rarestPieceIndex = i;
                 }
             }
 
-            int finalRarestPieceIndex = rarestPieceIndex;
-            torrentFile.getInfo()
+            currentPiece = torrentFile.getInfo()
                     .getPiecesStorage()
-                    .stream()
-                    .filter(pieceStorage -> pieceStorage.getIndex() == finalRarestPieceIndex)
-                    .findFirst()
-                    .orElseThrow(() -> new RuntimeException("Piece not found"));
+                    .get(rarestPieceIndex);
 
-            piece = new PieceStorage(rarestPieceIndex, (int) torrentFile.getInfo()
-                    .getPieceLength(), torrentFile.getInfo()
-                                             .getPieces()
-                                             .getBytes());
+            this.torrentPieces.put(torrentFile, currentPiece);
 
-            this.torrentPieces.put(torrentFile, piece);
-
-            return piece;
+            return currentPiece;
 
         } catch (Exception e) {
             e.printStackTrace();

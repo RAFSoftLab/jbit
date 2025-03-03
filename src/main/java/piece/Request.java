@@ -2,6 +2,7 @@ package piece;
 
 import core.PeerConnection;
 import core.bencode.TorrentFile;
+import exceptions.NoAvailableBlock;
 import storage.PieceStorage;
 
 import java.nio.ByteBuffer;
@@ -38,9 +39,8 @@ public class Request extends Message {
         int index = pieceStorage.getIndex();
         Block block = pieceStorage.getNextBlock();
 
-        if(block == null){
-            System.out.println("Block is null");
-            return ByteBuffer.allocate(0);
+        if (block == null) {
+            throw new NoAvailableBlock(String.format("No available block for piece with index %d", index));
         }
 
         ByteBuffer buffer = ByteBuffer.allocate(length + 4);
@@ -49,7 +49,7 @@ public class Request extends Message {
         buffer.putInt(index);
         buffer.putInt(block.offset);
         buffer.putInt(block.length);
-        System.out.println("creating request for" + index);
+        System.out.println("creating request for " + index + " with offset " + block.offset + " and length " + block.length);
         return buffer;
     }
 }

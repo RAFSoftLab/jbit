@@ -4,6 +4,8 @@ import piece.Block;
 
 import java.nio.ByteBuffer;
 import java.security.MessageDigest;
+import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -31,33 +33,29 @@ public class PieceStorage {
     }
 
 
-    public synchronized void updateBlock(int offset, byte[] blockData) {
+    public synchronized boolean updateBlock(int offset, byte[] blockData) {
         for (Block block : blocks) {
-            if (block.getOffset() == offset && block.getDownloadState() == 0) {
+            if (block.getOffset() == offset && block.getDownloadState() == 2) {
                 dataBuffer.position(offset);
                 dataBuffer.put(blockData);
                 block.setDownloadState(1);
-                break;
+                System.out.println("UPDATED BLOCK WITH OFFSET " + offset + " and state " + block.getDownloadState());
+                return true;
             }
         }
+        return false;
     }
 
     public boolean areAllBlocksDownloaded() {
         for (Block block : blocks) {
             if (block.getDownloadState() != 1) {
+                if(block.getRequestTime().plusSeconds(3).isBefore(LocalDateTime.now())){
+                    block.setDownloadState(0);
+                }
                 return false;
             }
         }
         return true;
-    }
-
-    public boolean isNextBlockAvailable(){
-        for (Block block : blocks) {
-            if (block.getDownloadState() == 0) {
-                return true;
-            }
-        }
-        return false;
     }
 
     public synchronized Block getNextBlock() {
@@ -65,40 +63,54 @@ public class PieceStorage {
         for (Block block : blocks) {
             if (block.getDownloadState() == 0) {
                 block.setDownloadState(2);
+                block.setRequestTime(LocalDateTime.now());
                 return block;
             }
         }
-        if(areAllBlocksDownloaded()){
-            verify();
+
+        if (areAllBlocksDownloaded()) {
+            System.out.println("Should come here?");
+            if(verify()){
+              //downloadPiece
+
+            };
         }
         return null;
     }
 
-    public void verify(){
-        byte[] data = dataBuffer.array();
-        byte[] hash = new byte[20];
-
-        System.arraycopy(data, 0, hash, 0, 20);
-        if (MessageDigest.isEqual(hash, expectedHash)) {
-            verified = true;
+    public boolean verify() {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-1");
+            byte[] hash = digest.digest(dataBuffer.array());
+            if (MessageDigest.isEqual(hash, expectedHash)) {
+                verified = true;
+                System.out.println("HASHES EQUAL");
+                return true;
+            } else {
+                System.out.println("HASHES NOT EQUAL");
+                return false;
+            }
+        }catch (Exception e){
+            e.printStackTrace();
         }
     }
 
-    public boolean isVerified(){
+    public boolean isVerified() {
         return verified;
     }
 
-    public synchronized boolean isComplete() {
-        for (Block block : blocks) {
-            if (block.getDownloadState() != 1) {
-                return false;
-            }
-        }
-        return true;
-    }
 
     public int getIndex() {
         return index;
     }
 
+    @Override
+    public int hashCode() {
+        return Integer.hashCode(index);
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        return obj instanceof PieceStorage piece && piece.index == index;
+    }
 }

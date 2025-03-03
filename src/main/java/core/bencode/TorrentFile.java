@@ -5,7 +5,9 @@ import storage.PieceStorage;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 public class TorrentFile extends BencodeDictionary {
 
@@ -102,6 +104,7 @@ public class TorrentFile extends BencodeDictionary {
         private final String name;
         private final List<Files> files;
         private final List<PieceStorage> piecesStorage;
+        private final Set<Integer> downloadedPieces;
 
 
         public Info(BencodeDictionary info) {
@@ -117,9 +120,15 @@ public class TorrentFile extends BencodeDictionary {
             this.pieceLength = info.get(PIECE_LENGTH, Long.class);
             this.pieces = info.get(PIECES, String.class);
             this.piecesStorage = processPieces((BencodeString) info.get(PIECES));
+            this.downloadedPieces = new HashSet<>();
+
             this.privateTorrent = info.get(PRIVATE, Integer.class) == null ? 1 : 0;
             this.name = info.getAsString(NAME);
 
+        }
+
+        public Set<Integer> getDownloadedPieces() {
+            return downloadedPieces;
         }
 
         private List<PieceStorage> processPieces(BencodeString piecesString) {

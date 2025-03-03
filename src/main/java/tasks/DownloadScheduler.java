@@ -2,6 +2,7 @@ package tasks;
 
 import core.PeerConnection;
 import core.bencode.TorrentFile;
+import exceptions.NoAvailableBlock;
 import piece.Interested;
 import piece.Message;
 import piece.RarestFirstPicker;
@@ -25,7 +26,7 @@ public class DownloadScheduler {
     }
 
     public void addTorrentConnections(TorrentFile torrentFile, List<PeerConnection> peerConnections) {
-        this.torrentConnections.put(torrentFile, peerConnections);
+        torrentConnections.put(torrentFile,peerConnections);
     }
 
 
@@ -40,10 +41,14 @@ public class DownloadScheduler {
                     for (PeerConnection peerConnection : peers) {
 
                         if (peerConnection.getPeerChoking() == 0 && peerConnection.getAmInterested() == 1) {
-                            Request request = new Request(picker, peerConnection);
-                            peerConnection.getTasks()
-                                    .addTask(new Task(request.create()
-                                                              .array(), TaskType.WRITE, peerConnection));
+                            try {
+                                Request request = new Request(picker, peerConnection);
+                                peerConnection.getTasks()
+                                        .addTask(new Task(request.create()
+                                                                  .array(), TaskType.WRITE, peerConnection));
+                            }catch (NoAvailableBlock e){
+                                continue;
+                            }
                         }
 
                         if (peerConnection.getAmInterested() == 0) {

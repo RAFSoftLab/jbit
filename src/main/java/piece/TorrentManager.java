@@ -39,6 +39,7 @@ public class TorrentManager {
         }
     }
 
+
     public void init() {
         for (TorrentFile torrent : torrentPeers.keySet()) {
             HandshakeClient client = new HandshakeClient(selector, torrent, new Handshake(torrent));
@@ -146,8 +147,17 @@ public class TorrentManager {
                 });
     }
 
+    public void handshake(TorrentFile torrentFile, List<Peer> peers){
+        HandshakeClient client = new HandshakeClient(selector, torrentFile, new Handshake(torrentFile));
+        torrentConnections.get(torrentFile).addAll(client.handshake(peers));
+    }
+
     public void addTorrentPeers(TorrentFile torrentFile, List<Peer> peers) {
         this.torrentPeers.put(torrentFile, peers);
+    }
+
+    public List<PeerConnection> getTorrentConnections(TorrentFile torrentFile) {
+        return torrentConnections.get(torrentFile);
     }
 
     public void readTasks() {

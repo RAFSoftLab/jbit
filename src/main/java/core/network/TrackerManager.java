@@ -36,6 +36,9 @@ public class TrackerManager {
 
         } catch (Exception e) {
             e.printStackTrace();
+            request.resolveNextUrl();
+            announce(torrent);
+
         }
 
 
