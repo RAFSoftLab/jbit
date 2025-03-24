@@ -23,5 +23,14 @@ public class Peer {
         return "Peer{" + "address='" + address + '\'' + ", port=" + port + '}';
     }
 
+    @Override
+    public boolean equals(Object obj) {
+        return obj instanceof Peer peer && peer.getAddress()
+                .equals(address) && peer.getPort() == port;
+    }
 
+    @Override
+    public int hashCode() {
+        return address.hashCode() + Integer.hashCode(port);
+    }
 }
