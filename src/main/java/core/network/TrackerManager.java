@@ -2,7 +2,9 @@ package core.network;
 
 import core.bencode.TorrentFile;
 
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class TrackerManager {
@@ -18,31 +20,50 @@ public class TrackerManager {
     }
 
 
+    public Set<Peer> getAllPeers(TorrentFile torrentFile) {
+
+        int size = torrentFile.getAnnounceList()
+                .size();
+        Set<Peer> peers = new HashSet<>();
+
+        for (int i = 0; i <= size; i++) {
+            TrackerNetworkResponse announceResponse = announce(torrentFile);
+            if (announceResponse == null) {
+                continue;
+            }
+
+            peers.addAll(announceResponse.getPeers());
+            if (peers.size() >= 100) {
+                return peers;
+            }
+        }
+
+        System.out.println("PEERS GATHERED: " + peers.size());
+
+        return peers;
+    }
+
+
     public TrackerNetworkResponse announce(TorrentFile torrent) {
 
         TrackerNetworkRequest request = requests.get(torrent);
 
-        if (request != null) {
-            return announce(request);
+        if (request == null) {
+            request = TrackerNetworkRequest.of(torrent);
+            requests.put(torrent, request);
         }
-
-        request = TrackerNetworkRequest.of(torrent);
-        request.resolveNextUrl();
 
         try {
-            TrackerNetworkResponse response = announce(request);
-            requests.put(torrent, request);
-            return response;
+            request.resolveNextUrl();
+            TrackerNetworkResponse announce = announce(request);
+
+            System.out.println("Doing for " + request.getUrl());
+            return announce;
 
         } catch (Exception e) {
-            e.printStackTrace();
-            request.resolveNextUrl();
-            announce(torrent);
-
+            return null;
         }
 
-
-        throw new RuntimeException("Failed to connect to tracker");
     }
 
     private TrackerNetworkResponse announce(TrackerNetworkRequest request) {
