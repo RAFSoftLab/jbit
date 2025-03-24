@@ -35,15 +35,14 @@ public class Piece extends Message {
                 .getPiecesStorage()
                 .get(index);
         assert pieceStorage.getIndex() == index;
-        if(!pieceStorage.updateBlock(begin,block)){
-            System.out.println("BLOCK NOT FOUND");
-        }
-        System.out.println("downloaded piece: " + index + " begin: " + begin + " length: " + block.length + " of total " + peerConnection.getTorrentFile().getInfo().getPieceLength());
+        pieceStorage.updateBlock(begin, block);
+        peerConnection.updateLastPieceReceived();
         return false;
     }
 
     @Override
     public ByteBuffer create() {
+        peerConnection.updateLastPieceReceived();
         System.out.println("not uploading yet");
         return null;
     }
