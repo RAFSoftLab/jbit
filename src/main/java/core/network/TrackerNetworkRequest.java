@@ -20,7 +20,7 @@ public class TrackerNetworkRequest {
     public final String event;
     private final String announceUrl;
     private final List<String> announceList;
-    private final AtomicInteger urlIndex = new AtomicInteger(-1);
+    private int urlIndex = -1;
     private final List<String> urls;
 
     private TrackerNetworkRequest(Builder builder) {
@@ -39,8 +39,7 @@ public class TrackerNetworkRequest {
     }
 
     public static TrackerNetworkRequest of(TorrentFile torrent) {
-        return new Builder().announceUrl(torrent.getAnnounceList()
-                                                 .getFirst())
+        return new Builder().announceUrl(torrent.getAnnounce())
                 .peerId("MFLJDCEACGABLBFDIGPF")
                 .port(6881)
                 .uploaded(0)
@@ -76,13 +75,15 @@ public class TrackerNetworkRequest {
     }
 
     public void resolveNextUrl() {
-        urlIndex.incrementAndGet();
-        if(urlIndex.get() >= urls.size()) urlIndex.set(0);
+        urlIndex++;
+
+        if(urlIndex >= urls.size()){
+            urlIndex = 0;
+        }
     }
 
     public String getUrl(){
-        int index = urlIndex.get();
-        return index <= 0 ? announceUrl : announceList.get(urlIndex.get());
+        return urlIndex <= 0 ? announceUrl : announceList.get(urlIndex);
     }
 
     public byte[] getInfoHashBytes() {
@@ -96,7 +97,7 @@ public class TrackerNetworkRequest {
     }
 
     public String getTrackerPort(){
-        return urls.get(urlIndex.get())
+        return urls.get(urlIndex)
                 .split(":")[2];
     }
 
