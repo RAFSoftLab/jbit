@@ -22,7 +22,6 @@ public class Have extends Message {
         int length = buffer.getInt();
         int id = buffer.get();
         int pieceIndex = buffer.getInt();
-        System.out.println("Have message received for index: " + pieceIndex);
 
         peerConnection.setPieceIndex(pieceIndex);
         return false;
