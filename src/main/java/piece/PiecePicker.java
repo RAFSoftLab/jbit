@@ -1,12 +1,10 @@
 package piece;
 
+import core.bencode.TorrentFile;
+import storage.PieceStorage;
+
 public interface PiecePicker {
 
-    void addPiece(int pieceIndex);
-
-    void removePiece(int pieceIndex);
-
-    int getNextPiece();
-
+    PieceStorage find(TorrentFile torrentFile);
 
 }

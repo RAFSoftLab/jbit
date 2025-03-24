@@ -4,9 +4,9 @@ import core.PeerConnection;
 import core.bencode.TorrentFile;
 import storage.PieceStorage;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class RarestFirstPicker implements PiecePicker {
@@ -19,25 +19,15 @@ public class RarestFirstPicker implements PiecePicker {
         this.torrentPieces = new ConcurrentHashMap<>();
     }
 
-    public synchronized PieceStorage find(TorrentFile torrentFile) {
+    @Override
+    public PieceStorage find(TorrentFile torrentFile) {
         try {
             PieceStorage currentPiece = torrentPieces.get(torrentFile);
-            List<PeerConnection> peers = torrentConnections.get(torrentFile);
-            Set<Integer> downloadedPieces = torrentFile.getInfo()
-                    .getDownloadedPieces();
+            List<PeerConnection> peers = new ArrayList<>(torrentConnections.get(torrentFile));
+            List<PieceStorage> pieceStorages = torrentFile.getInfo()
+                    .getPiecesStorage();
 
-            if (currentPiece != null && currentPiece.isVerified()) {
-                downloadedPieces.add(currentPiece.getIndex());
-            }
-
-            if (currentPiece != null && !currentPiece.isVerified()) {
-                return currentPiece;
-            }
-
-            int totalPieces = torrentFile.getInfo()
-                    .getPiecesStorage()
-                    .size();
-
+            int totalPieces = pieceStorages.size();
             int[] pieces = new int[totalPieces];
 
             for (PeerConnection peer : peers) {
@@ -49,22 +39,30 @@ public class RarestFirstPicker implements PiecePicker {
                 }
             }
 
-            int rarest = Integer.MAX_VALUE;
-            int rarestPieceIndex = 0;
+            if (currentPiece != null && pieces[currentPiece.getIndex()] > 0 && !currentPiece.isVerified() && !currentPiece.areAllBlockRequested()) {
+                return currentPiece;
+            }
+
+            int rarest = -1;
+            int rarestPieceIndex = -1;
 
             for (int i = 0; i < pieces.length; i++) {
                 int pieceAmount = pieces[i];
-                if (pieceAmount > 0 && pieceAmount < rarest && !downloadedPieces.contains(i)) {
+                if (!pieceStorages.get(i)
+                        .isVerified() && !pieceStorages.get(i)
+                        .areAllBlockRequested() && pieceAmount > 0 && pieceAmount > rarest) {
                     rarest = pieceAmount;
                     rarestPieceIndex = i;
                 }
             }
 
-            currentPiece = torrentFile.getInfo()
-                    .getPiecesStorage()
-                    .get(rarestPieceIndex);
 
-            this.torrentPieces.put(torrentFile, currentPiece);
+            if (rarestPieceIndex != -1) {
+                currentPiece = pieceStorages.get(rarestPieceIndex);
+
+                this.torrentPieces.put(torrentFile, currentPiece);
+            }
+
 
             return currentPiece;
 
@@ -72,21 +70,6 @@ public class RarestFirstPicker implements PiecePicker {
             e.printStackTrace();
             return null;
         }
-    }
-
-    @Override
-    public void addPiece(int pieceIndex) {
-        // pieceFrequencyMap.put(pieceIndex, pieceFrequencyMap.getOrDefault(pieceIndex, 0) + 1);
-    }
-
-    @Override
-    public void removePiece(int pieceIndex) {
-        //pieceFrequencyMap.remove(pieceIndex);
-    }
-
-    @Override
-    public int getNextPiece() {
-        return 0;
     }
 
 
