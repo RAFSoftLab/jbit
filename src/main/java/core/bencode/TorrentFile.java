@@ -35,14 +35,15 @@ public class TorrentFile extends BencodeDictionary {
         this.dictionary = dictionary;
 
         this.announce = dictionary.getAsString(ANNOUNCE);
-        this.announceList = ((BencodeList) dictionary.get(ANNOUNCE_LIST)).getValue()
+        BencodeElement<?> announceList = dictionary.get(ANNOUNCE_LIST);
+        this.announceList = announceList != null ? ((BencodeList) announceList).getValue()
                 .stream()
                 .map(BencodeList.class::cast)
                 .flatMap(list -> list.getValue()
                         .stream())
                 .map(BencodeString.class::cast)
                 .map(BencodeString::getValue)
-                .toList();
+                .toList(): new ArrayList<>();
         this.creationDate = LocalDate.ofEpochDay(getAsLong(CREATION_DATE));
         this.comment = dictionary.getAsString(COMMENT);
         this.createdBy = dictionary.getAsString(CREATED_BY);
@@ -105,6 +106,7 @@ public class TorrentFile extends BencodeDictionary {
         private final List<Files> files;
         private final List<PieceStorage> piecesStorage;
         private final Set<Integer> downloadedPieces;
+        private final long totalLength;
 
 
         public Info(BencodeDictionary info) {
@@ -116,6 +118,11 @@ public class TorrentFile extends BencodeDictionary {
                     .map(BencodeDictionary.class::cast)
                     .map(Files::new)
                     .toList() : null;
+
+            this.totalLength = this.files != null ? this.files.stream()
+                    .map(Files::getLength)
+                    .mapToLong(Long::longValue)
+                    .sum() : info.get("length", long.class);
 
             this.pieceLength = info.get(PIECE_LENGTH, Long.class);
             this.pieces = info.get(PIECES, String.class);
@@ -137,15 +144,19 @@ public class TorrentFile extends BencodeDictionary {
             List<PieceStorage> pieces = new ArrayList<>();
 
             int index = 0;
+            int totalAmountOfPieces = (int) Math.ceil((double) totalLength/ pieceLength);
+            int lastPieceSize = (int) (totalLength % pieceLength == 0 ? pieceLength : totalLength % pieceLength);
+
 
             for (int i = 0; i < piecesBytes.length; i += 20) {
                 if (i + 20 > piecesBytes.length) {
                     throw new IllegalArgumentException("Invalid pieces length: not a multiple of 20 bytes");
                 }
-
                 byte[] pieceHash = new byte[20];
                 System.arraycopy(piecesBytes, i, pieceHash, 0, 20);
-                PieceStorage piece = new PieceStorage(index++, pieceLength.intValue(), pieceHash);
+                boolean isLastPiece = index == totalAmountOfPieces - 1;
+                int currentPieceLength = isLastPiece ? lastPieceSize :  pieceLength.intValue();
+                PieceStorage piece = new PieceStorage(index++, currentPieceLength, pieceHash);
                 pieces.add(piece);
             }
 
