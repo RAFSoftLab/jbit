@@ -12,7 +12,7 @@ public class UdpTrackerClient implements TrackerClient {
     private static final int CONNECT = 0;
     private static final int ANNOUNCE = 1;
     private static final long MAGIC_CONSTANT = 0x41727101980L;
-    private static final int TIMEOUT_BASE = 15;
+    private static final int TIMEOUT_BASE = 1;
     private static final int TIMEOUT_MS = 120000;
     private static Instant lastAnnounce;
 
@@ -38,9 +38,9 @@ public class UdpTrackerClient implements TrackerClient {
         int attempts = 0;
         try {
             String url = request.getURL();
-            String[] split = url.split(":");
-            String host = split[1].substring(2);
-            int port = Integer.parseInt(split[2].split("/")[0]);
+            URI uri = new URI(url);
+            String host = uri.getHost();
+            int port = uri.getPort();
             InetSocketAddress address = new InetSocketAddress(InetAddress.getByName(host), port);
 
             long connectionId = connect(host, port);
@@ -60,7 +60,7 @@ public class UdpTrackerClient implements TrackerClient {
             announceBuffer.putInt(2);
             announceBuffer.putInt(0);
             announceBuffer.putInt(new SecureRandom().nextInt());
-            announceBuffer.putInt(-1);
+            announceBuffer.putInt(50);
             announceBuffer.putShort((short) request.port);
 
             while (++attempts <= 8) {
@@ -119,7 +119,8 @@ public class UdpTrackerClient implements TrackerClient {
             int attempts = 1;
             while (attempts <= 8) {
                 try {
-                    socket.setSoTimeout(TIMEOUT_BASE * (int) Math.pow(2, attempts) * 1000);
+                    //socket.setSoTimeout(TIMEOUT_BASE * (int) Math.pow(2, attempts) * 100);
+                    socket.setSoTimeout(500);
                     socket.send(packet);
                     socket.receive(new DatagramPacket(response, response.length));
                 } catch (SocketTimeoutException timeoutException) {
