@@ -27,7 +27,6 @@ public class Request extends Message {
         int index = buffer.getInt();
         int begin = buffer.getInt();
         int blockLength = buffer.getInt();
-        System.out.println("Requested piece: " + index + " begin: " + begin + " length: " + blockLength);
         return false;
     }
 
@@ -49,7 +48,6 @@ public class Request extends Message {
         buffer.putInt(index);
         buffer.putInt(block.offset);
         buffer.putInt(block.length);
-        System.out.println("creating request for " + index + " with offset " + block.offset + " and length " + block.length);
         return buffer;
     }
 }
