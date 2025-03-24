@@ -20,7 +20,9 @@ public class BitField extends Message {
 
     @Override
     public boolean parse(ByteBuffer buffer) {
-        System.out.println("Reading bitfield");
+        buffer.getInt();
+        buffer.get();
+
         int pieces = peerConnection.getTorrentFile()
                 .getInfo()
                 .getPiecesStorage()
@@ -42,22 +44,20 @@ public class BitField extends Message {
             }
             byteIndex++;
         }
-
         peerConnection.setBitField(bitSet);
         return true;
 
     }
 
+
     @Override
     public ByteBuffer create() {
-
         int length = peerConnection.getTorrentFile()
                 .getInfo()
                 .getPiecesStorage()
                 .size();
 
         BitSet bitSet = new BitSet(length);
-
         ByteBuffer buffer = ByteBuffer.allocate(length + 5);
         buffer.putInt(length + 1);
         buffer.put(id);
