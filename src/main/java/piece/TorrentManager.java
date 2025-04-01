@@ -4,10 +4,7 @@ import core.PeerConnection;
 import core.bencode.TorrentFile;
 import core.network.Peer;
 import storage.PieceStorage;
-import tasks.DownloadScheduler;
-import tasks.ReadTaskWorker;
-import tasks.Task;
-import tasks.TaskType;
+import tasks.*;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -15,30 +12,32 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
 import java.time.LocalDateTime;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 public class TorrentManager {
 
-    private Selector selector;
-    private DownloadScheduler downloadScheduler;
-    private Map<TorrentFile, List<Peer>> torrentPeers;
-    private Map<TorrentFile, List<PeerConnection>> torrentConnections;
-    private PiecePicker piecePicker;
-    private ReadTaskWorker readTaskWorker;
+    private final Selector selector;
+    private final Map<TorrentFile, List<Peer>> torrentPeers;
+    private final Map<TorrentFile, List<PeerConnection>> torrentConnections;
+    private final ReadTaskWorker readTaskWorker;
+    private final DownloadScheduler downloadScheduler;
 
     public TorrentManager() {
         try {
             this.selector = Selector.open();
             this.torrentPeers = new ConcurrentHashMap<>();
             this.torrentConnections = new ConcurrentHashMap<>();
-            this.piecePicker = new RarestFirstPicker(torrentConnections);
-            this.downloadScheduler = new DownloadScheduler((RarestFirstPicker) piecePicker);
-            this.readTaskWorker = new ReadTaskWorker((RarestFirstPicker) piecePicker);
+            this.downloadScheduler = new DownloadScheduler(new RarestFirstPicker(torrentConnections));
+            this.readTaskWorker = new ReadTaskWorker(downloadScheduler);
         } catch (IOException e) {
             e.printStackTrace();
+            throw new RuntimeException(e);
         }
     }
 
@@ -47,11 +46,11 @@ public class TorrentManager {
         for (TorrentFile torrent : torrentPeers.keySet()) {
             HandshakeClient client = new HandshakeClient(selector, torrent, new Handshake(torrent));
             torrentConnections.put(torrent, client.handshake(torrentPeers.get(torrent)));
-            downloadScheduler.addTorrentConnections(torrent, torrentConnections.get(torrent));
         }
-
-        downloadScheduler.scheduleTask();
         executeSelector();
+        readTaskWorker.start();
+        downloadScheduler.start();
+
         readTasks();
     }
 
@@ -60,8 +59,6 @@ public class TorrentManager {
         Executors.newSingleThreadExecutor()
                 .execute(() -> {
                     while (true) {
-
-
                         try {
                             selector.select();
                         } catch (IOException e) {
@@ -148,10 +145,16 @@ public class TorrentManager {
                                             peerConnection.getChannel()
                                                     .write(buffer);
                                         }
+                                        downloadScheduler.enqueueEvent(
+                                                new WriteEvent(peerConnection, WriteEvent.EventType.FREE_SPACE));
                                     }
                                 }
                             } catch (IOException e) {
-                                try{key.channel().close();} catch (Exception ignored){}
+                                try {
+                                    key.channel()
+                                            .close();
+                                } catch (Exception ignored) {
+                                }
                                 key.cancel();
                                 e.printStackTrace();
                             }
@@ -185,42 +188,39 @@ public class TorrentManager {
 
     public void readTasks() {
 
-      readTaskWorker.start();
+        Executors.newSingleThreadScheduledExecutor()
+                .scheduleAtFixedRate(() -> {
+                    try {
+                        LocalDateTime now = LocalDateTime.now();
+                        for (TorrentFile torrentFile : torrentPeers.keySet()) {
 
-      Executors.newSingleThreadScheduledExecutor()
-              .scheduleAtFixedRate(()->{
-                  try {
-                      LocalDateTime now = LocalDateTime.now();
-                      for (TorrentFile torrentFile : torrentPeers.keySet()) {
+                            List<PieceStorage> piecesStorage = torrentFile.getInfo()
+                                    .getPiecesStorage();
+                            piecesStorage.forEach(PieceStorage::clearStale);
 
-                          List<PieceStorage> piecesStorage = torrentFile.getInfo()
-                                  .getPiecesStorage();
-                          piecesStorage.forEach(PieceStorage::clearStale);
-
-                          List<PeerConnection> peerConnections = new ArrayList<>(torrentConnections.get(torrentFile));
+                            List<PeerConnection> peerConnections = new ArrayList<>(torrentConnections.get(torrentFile));
 
 
-                          for (PeerConnection peerConnection : peerConnections) {
-                              if (now.minusSeconds(60)
-                                      .isAfter(peerConnection.getLastPieceReceived())) {
-                                  try {
-                                      System.out.println("Removing IDLE connection");
-                                      peerConnection.getPeerChannel()
-                                              .close();
-                                      torrentConnections.get(torrentFile)
-                                              .remove(peerConnection);
-                                  } catch (Exception e) {
-                                      e.printStackTrace();
-                                  }
-                              }
-                          }
-                      }
-                  }catch (Exception e){
-                      System.out.println("Error in read tasks");
-                      e.printStackTrace();
-                  }
-                  }, 0, 10, TimeUnit.SECONDS);
-
+                            for (PeerConnection peerConnection : peerConnections) {
+                                if (now.minusSeconds(60)
+                                        .isAfter(peerConnection.getLastPieceReceived())) {
+                                    try {
+                                        System.out.println("Removing IDLE connection");
+                                        peerConnection.getPeerChannel()
+                                                .close();
+                                        torrentConnections.get(torrentFile)
+                                                .remove(peerConnection);
+                                    } catch (Exception e) {
+                                        e.printStackTrace();
+                                    }
+                                }
+                            }
+                        }
+                    } catch (Exception e) {
+                        System.out.println("Error in read tasks");
+                        e.printStackTrace();
+                    }
+                }, 0, 10, TimeUnit.SECONDS);
 
 
     }

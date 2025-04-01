@@ -1,7 +1,6 @@
 package piece;
 
 import core.PeerConnection;
-import core.bencode.TorrentFile;
 import exceptions.NoAvailableBlock;
 import storage.PieceStorage;
 
@@ -11,19 +10,27 @@ public class Request extends Message {
 
     private final int length = 13;
     private final byte id = 6;
-    private final RarestFirstPicker picker;
 
-    public Request(RarestFirstPicker picker, PeerConnection peerConnection) {
+    private final PieceStorage pieceStorage;
+
+    public Request(PieceStorage pieceStorage, PeerConnection peerConnection) {
         super(peerConnection);
-        this.picker = picker;
+        this.pieceStorage = pieceStorage;
     }
 
+    public Request(PeerConnection peerConnection) {
+        super(peerConnection);
+        this.pieceStorage = null;
+    }
 
     @Override
     public boolean parse(ByteBuffer buffer) {
         buffer.flip();
         int length = buffer.getInt();
         int id = buffer.get();
+        if(length != this.length && id != this.id) {
+            throw new IllegalStateException("Invalid message");
+        }
         int index = buffer.getInt();
         int begin = buffer.getInt();
         int blockLength = buffer.getInt();
@@ -32,9 +39,6 @@ public class Request extends Message {
 
     @Override
     public ByteBuffer create() {
-        TorrentFile torrentFile = peerConnection.getTorrentFile();
-        PieceStorage pieceStorage = picker.find(torrentFile);
-
         int index = pieceStorage.getIndex();
         Block block = pieceStorage.getNextBlock();
 

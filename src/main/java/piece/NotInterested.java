@@ -18,7 +18,6 @@ public class NotInterested extends Message {
         int length = buffer.getInt();
         int id = buffer.get();
         assert  id == 3;
-        System.out.println("Not intrested message");
         peerConnection.setPeerInterested(0);
         return false;
     }
@@ -26,7 +25,9 @@ public class NotInterested extends Message {
     @Override
     public ByteBuffer create() {
         peerConnection.setAmInterested(0);
-        System.out.println("Not interested message AM");
-        return null;
+        ByteBuffer buffer = ByteBuffer.allocate(length + 4);
+        buffer.putInt(length);
+        buffer.put(id);
+        return buffer;
     }
 }

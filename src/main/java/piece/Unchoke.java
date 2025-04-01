@@ -17,7 +17,7 @@ public class Unchoke extends Message {
 
     @Override
     public boolean parse(ByteBuffer buffer) {
-        System.out.println("Unchoked message received");
+        System.out.println("Unchoke");
         int length = buffer.getInt();
         byte id = buffer.get();
         assert id == 1;

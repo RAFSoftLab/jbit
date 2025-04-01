@@ -12,16 +12,16 @@ import java.util.concurrent.LinkedBlockingQueue;
 public class ReadTaskWorker {
 
     private final BlockingQueue<Task> tasks;
-    private final RarestFirstPicker rarestFirstPicker;
     private final ExecutorService executorService;
+    private final DownloadScheduler downloadScheduler;
 
     private Thread consumerThread;
     private volatile boolean running = false;
 
-    public ReadTaskWorker(RarestFirstPicker rarestFirstPicker) {
+    public ReadTaskWorker(DownloadScheduler downloadScheduler) {
         this.tasks = new LinkedBlockingQueue<>();
-        this.rarestFirstPicker = rarestFirstPicker;
         this.executorService = Executors.newFixedThreadPool(10);
+        this.downloadScheduler = downloadScheduler;
     }
 
 
@@ -42,6 +42,7 @@ public class ReadTaskWorker {
                     Message message = determineMessage(task);
                     if (message != null) {
                         message.parse(ByteBuffer.wrap(task.getMessage()));
+                        downloadScheduler.listen(message);
                     }
                 });
 
@@ -89,8 +90,8 @@ public class ReadTaskWorker {
             case 2 -> new Interested(peerConnection);
             case 3 -> new NotInterested(peerConnection);
             case 4 -> new Have(0, peerConnection);
-            case 5 -> new BitField(new byte[0], peerConnection);
-            case 6 -> new Request(rarestFirstPicker, peerConnection);
+            case 5 -> new BitField(peerConnection);
+            case 6 -> new Request(peerConnection);
             case 7 -> new Piece(0, 0, new byte[0], peerConnection);
             case 8 -> new Cancel(peerConnection);
             default -> null;

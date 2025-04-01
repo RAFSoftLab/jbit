@@ -7,14 +7,10 @@ import java.util.BitSet;
 
 public class BitField extends Message {
 
-    private final int length;
-    private final byte id = 5;
-    private final byte[] bitField;
+    private static final byte ID = 5;
 
-    public BitField(byte[] bitField, PeerConnection peerConnection) {
+    public BitField(PeerConnection peerConnection) {
         super(peerConnection);
-        this.bitField = bitField;
-        this.length = bitField.length + 1;
     }
 
 
@@ -60,7 +56,7 @@ public class BitField extends Message {
         BitSet bitSet = new BitSet(length);
         ByteBuffer buffer = ByteBuffer.allocate(length + 5);
         buffer.putInt(length + 1);
-        buffer.put(id);
+        buffer.put(ID);
         buffer.put(bitSet.toByteArray());
         return buffer;
     }

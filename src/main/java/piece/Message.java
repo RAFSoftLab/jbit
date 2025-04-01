@@ -16,4 +16,7 @@ public abstract class Message {
 
     public abstract ByteBuffer create();
 
+    public PeerConnection getPeerConnection() {
+        return peerConnection;
+    }
 }

@@ -8,6 +8,7 @@ import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 import java.time.LocalDateTime;
 import java.util.BitSet;
+import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class PeerConnection {
@@ -117,6 +118,11 @@ public class PeerConnection {
 
     public void setAmInterested(int amInterested) {
         this.amInterested = amInterested;
+    }
+
+    public boolean isInteresting(){
+        return torrentFile.getInfo().getDownloadedPieces().stream()
+                .anyMatch(pieceIndex -> bitField.get(pieceIndex));
     }
 
     public void setPieceIndex(int pieceIndex) {

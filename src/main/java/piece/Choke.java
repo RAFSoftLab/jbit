@@ -16,6 +16,7 @@ public class Choke extends Message {
     @Override
     public ByteBuffer create() {
         ByteBuffer buffer = ByteBuffer.allocate(5);
+        System.out.println("Choke");
         buffer.putInt(length);
         buffer.put(id);
         return buffer;

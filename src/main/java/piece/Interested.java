@@ -11,15 +11,16 @@ public class Interested extends Message {
 
     public Interested(PeerConnection peerConnection) {
         super(peerConnection);
+        this.peerConnection.setAmInterested(1);
     }
 
     @Override
     public ByteBuffer create() {
+        System.out.println("Interested");
         peerConnection.setAmInterested(1);
         ByteBuffer buffer = ByteBuffer.allocate(5);
         buffer.putInt(length);
         buffer.put(id);
-        System.out.println("Sending interested message");
         return buffer;
     }
 
