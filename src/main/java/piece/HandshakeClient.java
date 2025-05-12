@@ -19,19 +19,13 @@ import java.util.List;
 public class HandshakeClient {
 
     private static final int CONNECTION_TIMEOUT_MS = 10000;
-
-    private final TorrentFile torrentFile;
-    private final Handshake handshakeMessage;
     private final Selector se;
 
-
-    public HandshakeClient(Selector selector, TorrentFile torrentFile, Handshake handshakeMessage) {
+    public HandshakeClient(Selector selector) {
         this.se = selector;
-        this.torrentFile = torrentFile;
-        this.handshakeMessage = handshakeMessage;
     }
 
-    public List<PeerConnection> handshake(List<Peer> peers) {
+    public List<PeerConnection> handshake(List<Peer> peers, TorrentFile torrentFile) {
         try {
             Selector selector = Selector.open();
             List<PeerConnection> connections = new ArrayList<>();
@@ -60,6 +54,7 @@ public class HandshakeClient {
             //ByteBuffer buffer = handshakeMessage.create().flip();
             int iterations = 0;
             int connected = 0;
+            final Handshake handshakeMessage = new Handshake(torrentFile);
             try {
                 while ((System.currentTimeMillis() - startTime) < CONNECTION_TIMEOUT_MS) {
                     iterations++;

@@ -121,7 +121,7 @@ public class PeerConnection {
     }
 
     public boolean isInteresting(){
-        return torrentFile.getInfo().getDownloadedPieces().stream()
+        return torrentFile.getDownloadedPieces().stream()
                 .anyMatch(pieceIndex -> bitField.get(pieceIndex));
     }
 

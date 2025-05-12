@@ -6,7 +6,6 @@ import core.network.Peer;
 import core.network.TrackerManager;
 import piece.TorrentManager;
 import storage.PieceStorage;
-import util.FileUtils;
 
 import java.io.BufferedInputStream;
 import java.io.FileInputStream;
@@ -27,18 +26,26 @@ public class Main {
             TorrentFile torrentFile = new TorrentFile(dictionary);
             TrackerManager manager = new TrackerManager();
             //TrackerNetworkResponse announce = manager.announce(torrentFile);
-            Set<Peer> peers = manager.getAllPeers(torrentFile);
             TorrentManager torrentManager = new TorrentManager();
+            torrentManager.addTorrent(torrentFile);
+
+
+            torrentManager.init();
+
+
             Runnable runnable = () -> {
                 try {
+                    if (torrentFile.isCompleted()){
+                        return;
+                    }
+
                     List<PeerConnection> torrentConnections = torrentManager.getTorrentConnections(torrentFile);
                     List<PeerConnection> activeConnections = torrentConnections.stream().filter( conn -> conn.getPeerChoking() == 0).toList();
                     System.out.println("ACTIVE CONNECTIONS: " + activeConnections.size());
-                    System.out.println("DOWNLOADED TOTAL:  " + torrentFile.getInfo().getDownloadedPieces().size() + " of " + torrentFile.getInfo().getPiecesStorage().size());
-                    System.out.println("LEFT: " + (torrentFile.getInfo().getPiecesStorage().size() - torrentFile.getInfo().getDownloadedPieces().size()));
+                    System.out.println("LEFT: " + (torrentFile.getInfo().getPiecesStorage().size() - torrentFile.getDownloadedPieces().size()));
                     List<Integer> leftPieces = new ArrayList<>();
                     for (PieceStorage piece : torrentFile.getInfo().getPiecesStorage()){
-                        if (!torrentFile.getInfo().getDownloadedPieces().contains(piece.getIndex())){
+                        if (!torrentFile.getDownloadedPieces().contains(piece.getIndex())){
                             leftPieces.add(piece.getIndex());
                         }
                     }
@@ -69,7 +76,7 @@ public class Main {
                     if(activeConnections.size() <= 3){
                         Set<Peer> newPeers = manager.getAllPeers(torrentFile);
                         System.out.println("NEW PEERS: " + newPeers.size());
-                        torrentManager.handshake(torrentFile, new ArrayList<>(newPeers));
+                        torrentManager.establishConnections(torrentFile, new ArrayList<>(newPeers));
                     }
 
                 }catch (Exception e){
@@ -82,10 +89,10 @@ public class Main {
             scheduledExecutorService.scheduleAtFixedRate(runnable, 60, 10,
                                               TimeUnit.SECONDS);
 
+
+
+            Set<Peer> peers = torrentFile.isCompleted() ?  new HashSet<>() : manager.getAllPeers(torrentFile);
             torrentManager.addTorrentPeers(torrentFile, new ArrayList<>(peers));
-            torrentManager.init();
-            FileUtils fileUtils = new FileUtils(List.of(torrentFile));
-            fileUtils.init();
 
         } catch (Exception e) {
             e.printStackTrace();

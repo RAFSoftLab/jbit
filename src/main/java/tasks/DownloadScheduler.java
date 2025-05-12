@@ -76,7 +76,7 @@ public class DownloadScheduler {
     private void addRequestTask(PeerConnection peerConnection) {
         PieceStorage pieceStorage = picker.find(peerConnection.getTorrentFile());
         while (peerConnection.getTasks()
-                .sizeOfWriteTasks() < MAX_WRITE_TASKS) {
+                .sizeOfWriteTasks() < MAX_WRITE_TASKS  && !peerConnection.getTorrentFile().isCompleted()) {
             try {
                 Message request = new Request(pieceStorage, peerConnection);
                 peerConnection.getTasks()

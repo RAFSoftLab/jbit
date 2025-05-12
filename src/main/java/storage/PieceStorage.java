@@ -125,6 +125,10 @@ public class PieceStorage {
 
     }
 
+    public void setVerified(boolean verified){
+        this.verified = verified;
+    }
+
 
     public synchronized void clearStale(){
         if (!finished.get() && isRequested()) {

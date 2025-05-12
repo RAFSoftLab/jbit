@@ -1,10 +1,12 @@
 package piece;
 
 import core.PeerConnection;
+import core.ResumeData;
 import core.bencode.TorrentFile;
 import core.network.Peer;
 import storage.PieceStorage;
 import tasks.*;
+import util.FileUtils;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -12,10 +14,7 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -25,8 +24,12 @@ public class TorrentManager {
     private final Selector selector;
     private final Map<TorrentFile, List<Peer>> torrentPeers;
     private final Map<TorrentFile, List<PeerConnection>> torrentConnections;
+    private final Set<TorrentFile> managedTorrents;
     private final ReadTaskWorker readTaskWorker;
     private final DownloadScheduler downloadScheduler;
+    private final ResumeData resumeData;
+    private final FileUtils fileUtils;
+    private final HandshakeClient handshakeClient;
 
     public TorrentManager() {
         try {
@@ -35,6 +38,10 @@ public class TorrentManager {
             this.torrentConnections = new ConcurrentHashMap<>();
             this.downloadScheduler = new DownloadScheduler(new RarestFirstPicker(torrentConnections));
             this.readTaskWorker = new ReadTaskWorker(downloadScheduler);
+            this.managedTorrents = new HashSet<>();
+            this.resumeData = new ResumeData();
+            this.fileUtils = new FileUtils(managedTorrents, resumeData);
+            this.handshakeClient = new HandshakeClient(selector);
         } catch (IOException e) {
             e.printStackTrace();
             throw new RuntimeException(e);
@@ -43,15 +50,28 @@ public class TorrentManager {
 
 
     public void init() {
-        for (TorrentFile torrent : torrentPeers.keySet()) {
-            HandshakeClient client = new HandshakeClient(selector, torrent, new Handshake(torrent));
-            torrentConnections.put(torrent, client.handshake(torrentPeers.get(torrent)));
-        }
+        managedTorrents.forEach(torrentFile -> torrentFile.setMetaData(resumeData.getMetaData(torrentFile)));
         executeSelector();
         readTaskWorker.start();
         downloadScheduler.start();
+        fileUtils.init();
 
         readTasks();
+    }
+
+
+    public void establishConnections(TorrentFile torrentFile, List<Peer> peers){
+        if(!managedTorrents.contains(torrentFile)){
+            throw new IllegalArgumentException(String.format("Torrent with hash: %s not managed", torrentFile.getInfoHash()));
+        }
+
+        List<Peer> activePeers = torrentConnections.get(torrentFile)
+                .stream()
+                .map(PeerConnection::getPeer)
+                .toList();
+        peers.removeAll(activePeers);
+
+        addTorrentConnections(torrentFile,handshakeClient.handshake(peers, torrentFile));
     }
 
 
@@ -165,34 +185,28 @@ public class TorrentManager {
                 });
     }
 
-    public void handshake(TorrentFile torrentFile, List<Peer> peers) {
-        HandshakeClient client = new HandshakeClient(selector, torrentFile, new Handshake(torrentFile));
-        List<Peer> activePeers = torrentConnections.get(torrentFile)
-                .stream()
-                .map(PeerConnection::getPeer)
-                .toList();
-        peers.removeAll(activePeers);
-        List<PeerConnection> handshake = client.handshake(peers);
-        System.out.println("ADDING TOTAL OF " + handshake.size() + " PEERS");
-        torrentConnections.get(torrentFile)
-                .addAll(handshake);
-    }
-
     public void addTorrentPeers(TorrentFile torrentFile, List<Peer> peers) {
         this.torrentPeers.put(torrentFile, peers);
+    }
+
+    public void addTorrent(TorrentFile torrentFile){
+        this.managedTorrents.add(torrentFile);
     }
 
     public List<PeerConnection> getTorrentConnections(TorrentFile torrentFile) {
         return torrentConnections.get(torrentFile);
     }
 
+    public void addTorrentConnections(TorrentFile torrent, List<PeerConnection> connections){
+        torrentConnections.getOrDefault(torrent, new ArrayList<>()).addAll(connections);
+    }
     public void readTasks() {
 
         Executors.newSingleThreadScheduledExecutor()
                 .scheduleAtFixedRate(() -> {
                     try {
                         LocalDateTime now = LocalDateTime.now();
-                        for (TorrentFile torrentFile : torrentPeers.keySet()) {
+                        for (TorrentFile torrentFile : managedTorrents) {
 
                             List<PieceStorage> piecesStorage = torrentFile.getInfo()
                                     .getPiecesStorage();

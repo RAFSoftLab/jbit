@@ -39,6 +39,9 @@ public class Request extends Message {
 
     @Override
     public ByteBuffer create() {
+        if(pieceStorage == null ){
+            throw new RuntimeException("No piece available");
+        }
         int index = pieceStorage.getIndex();
         Block block = pieceStorage.getNextBlock();
 

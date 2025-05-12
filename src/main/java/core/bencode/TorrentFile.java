@@ -1,11 +1,11 @@
 package core.bencode;
 
 import common.TorrentState;
+import core.ResumeTorrentData;
 import storage.PieceStorage;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -27,8 +27,7 @@ public class TorrentFile extends BencodeDictionary {
     private final String createdBy;
     private final String encoding;
     private final Info info;
-    private TorrentState state;
-
+    private ResumeTorrentData metaData;
 
     public TorrentFile(BencodeDictionary dictionary) {
         super(dictionary.getValue());
@@ -43,22 +42,23 @@ public class TorrentFile extends BencodeDictionary {
                         .stream())
                 .map(BencodeString.class::cast)
                 .map(BencodeString::getValue)
-                .toList(): new ArrayList<>();
+                .toList() : new ArrayList<>();
         this.creationDate = LocalDate.ofEpochDay(getAsLong(CREATION_DATE));
         this.comment = dictionary.getAsString(COMMENT);
         this.createdBy = dictionary.getAsString(CREATED_BY);
         this.encoding = dictionary.getAsString(ENCODING);
         this.info = new Info((BencodeDictionary) dictionary.get(INFO));
-
     }
 
-    public TorrentState getTorrentState() {
-        return state;
+    public void setMetaData(ResumeTorrentData metaData) {
+        this.metaData = metaData;
+        this.info.getPiecesStorage().forEach(pieceStorage -> {
+            if (metaData.getBitField().get(pieceStorage.getIndex())) {
+                pieceStorage.setVerified(true);
+            }
+        });
     }
 
-    public void setTorrentState(TorrentState state) {
-        this.state = state;
-    }
 
     public Info getInfo() {
         return info;
@@ -88,6 +88,25 @@ public class TorrentFile extends BencodeDictionary {
         return encoding;
     }
 
+    public boolean isCompleted() {
+        TorrentState state = this.metaData.getState();
+        if (state  == null) {
+            //throw new IllegalStateException("Torrent state is null");
+            return false;
+        }
+        return state.equals(TorrentState.FINISHED);
+    }
+
+    public Set<Integer> getDownloadedPieces(){
+        return metaData.getDownloadedPieces();
+    }
+
+    public ResumeTorrentData getMetaData(){
+        return metaData;
+    }
+
+
+
     public static final class Info {
 
         private static final String FILES = "files";
@@ -105,7 +124,6 @@ public class TorrentFile extends BencodeDictionary {
         private final String name;
         private final List<Files> files;
         private final List<PieceStorage> piecesStorage;
-        private final Set<Integer> downloadedPieces;
         private final long totalLength;
 
 
@@ -127,16 +145,12 @@ public class TorrentFile extends BencodeDictionary {
             this.pieceLength = info.get(PIECE_LENGTH, Long.class);
             this.pieces = info.get(PIECES, String.class);
             this.piecesStorage = processPieces((BencodeString) info.get(PIECES));
-            this.downloadedPieces = new HashSet<>();
 
             this.privateTorrent = info.get(PRIVATE, Integer.class) == null ? 1 : 0;
             this.name = info.getAsString(NAME);
 
         }
 
-        public Set<Integer> getDownloadedPieces() {
-            return downloadedPieces;
-        }
 
         private List<PieceStorage> processPieces(BencodeString piecesString) {
 
@@ -144,7 +158,7 @@ public class TorrentFile extends BencodeDictionary {
             List<PieceStorage> pieces = new ArrayList<>();
 
             int index = 0;
-            int totalAmountOfPieces = (int) Math.ceil((double) totalLength/ pieceLength);
+            int totalAmountOfPieces = (int) Math.ceil((double) totalLength / pieceLength);
             int lastPieceSize = (int) (totalLength % pieceLength == 0 ? pieceLength : totalLength % pieceLength);
 
 
@@ -155,7 +169,7 @@ public class TorrentFile extends BencodeDictionary {
                 byte[] pieceHash = new byte[20];
                 System.arraycopy(piecesBytes, i, pieceHash, 0, 20);
                 boolean isLastPiece = index == totalAmountOfPieces - 1;
-                int currentPieceLength = isLastPiece ? lastPieceSize :  pieceLength.intValue();
+                int currentPieceLength = isLastPiece ? lastPieceSize : pieceLength.intValue();
                 PieceStorage piece = new PieceStorage(index++, currentPieceLength, pieceHash);
                 pieces.add(piece);
             }
