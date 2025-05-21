@@ -12,7 +12,7 @@ public class BencodeString extends BencodeElement<String> {
 
     private final byte[] bytes;
 
-    BencodeString(String value, byte[] rawValue) {
+    public BencodeString(String value, byte[] rawValue) {
         super(value);
         this.bytes = rawValue;
     }

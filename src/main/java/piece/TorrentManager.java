@@ -1,7 +1,7 @@
 package piece;
 
 import core.PeerConnection;
-import core.ResumeData;
+import core.SessionLoader;
 import core.bencode.TorrentFile;
 import core.network.Peer;
 import storage.PieceStorage;
@@ -27,9 +27,9 @@ public class TorrentManager {
     private final Set<TorrentFile> managedTorrents;
     private final ReadTaskWorker readTaskWorker;
     private final DownloadScheduler downloadScheduler;
-    private final ResumeData resumeData;
     private final FileUtils fileUtils;
     private final HandshakeClient handshakeClient;
+    private final SessionLoader sessionLoader;
 
     public TorrentManager() {
         try {
@@ -39,24 +39,29 @@ public class TorrentManager {
             this.downloadScheduler = new DownloadScheduler(new RarestFirstPicker(torrentConnections));
             this.readTaskWorker = new ReadTaskWorker(downloadScheduler);
             this.managedTorrents = new HashSet<>();
-            this.resumeData = new ResumeData();
-            this.fileUtils = new FileUtils(managedTorrents, resumeData);
+            this.fileUtils = new FileUtils(managedTorrents);
             this.handshakeClient = new HandshakeClient(selector);
+            this.sessionLoader = new SessionLoader();
         } catch (IOException e) {
             e.printStackTrace();
             throw new RuntimeException(e);
         }
     }
 
-
     public void init() {
-        managedTorrents.forEach(torrentFile -> torrentFile.setMetaData(resumeData.getMetaData(torrentFile)));
+        List<TorrentFile> torrentFiles = sessionLoader.onLoad();
+        managedTorrents.addAll(torrentFiles);
+        torrentFiles.forEach(t-> torrentConnections.put(t, new ArrayList<>()));
         executeSelector();
         readTaskWorker.start();
         downloadScheduler.start();
         fileUtils.init();
 
         readTasks();
+    }
+
+    public Map<TorrentFile, List<PeerConnection>> getTorrentPeers() {
+        return this.torrentConnections;
     }
 
 
@@ -173,14 +178,11 @@ public class TorrentManager {
                                 try {
                                     key.channel()
                                             .close();
-                                } catch (Exception ignored) {
-                                }
+                                } catch (Exception ignored) {}
                                 key.cancel();
                                 e.printStackTrace();
                             }
                         }
-
-
                     }
                 });
     }
@@ -191,6 +193,7 @@ public class TorrentManager {
 
     public void addTorrent(TorrentFile torrentFile){
         this.managedTorrents.add(torrentFile);
+        this.torrentConnections.put(torrentFile, new ArrayList<>());
     }
 
     public List<PeerConnection> getTorrentConnections(TorrentFile torrentFile) {
@@ -198,7 +201,7 @@ public class TorrentManager {
     }
 
     public void addTorrentConnections(TorrentFile torrent, List<PeerConnection> connections){
-        torrentConnections.getOrDefault(torrent, new ArrayList<>()).addAll(connections);
+        torrentConnections.get(torrent).addAll(connections);
     }
     public void readTasks() {
 
@@ -213,7 +216,6 @@ public class TorrentManager {
                             piecesStorage.forEach(PieceStorage::clearStale);
 
                             List<PeerConnection> peerConnections = new ArrayList<>(torrentConnections.get(torrentFile));
-
 
                             for (PeerConnection peerConnection : peerConnections) {
                                 if (now.minusSeconds(60)

@@ -1,7 +1,6 @@
 package util;
 
 import common.TorrentState;
-import core.ResumeData;
 import core.bencode.TorrentFile;
 import storage.PieceStorage;
 
@@ -15,32 +14,23 @@ import java.util.concurrent.TimeUnit;
 
 public class FileUtils {
 
-    private final ResumeData resumeData;
     private final Set<TorrentFile> torrentFiles;
 
-    private int iteration = 0;
-
-    public FileUtils(Set<TorrentFile> torrentFiles, ResumeData resumeData) {
+    public FileUtils(Set<TorrentFile> torrentFiles) {
         this.torrentFiles = torrentFiles;
-        this.resumeData = resumeData;
     }
 
     public void init() {
 
         Runnable runnable = () -> {
             try {
-                System.out.println("RUNNING fileutils");
                 for (TorrentFile torrentFile : torrentFiles) {
-                    System.out.println("ovde");
                     List<PieceStorage> pieces = torrentFile.getInfo()
                             .getPiecesStorage();
-                    Set<Integer> downloadedPieces = resumeData.getDownloadedPieces(torrentFile);
+                    Set<Integer> downloadedPieces = torrentFile.getMetaData().getDownloadedPieces();
                     List<PieceStorage> notDownloadedPieces = pieces.stream()
                             .filter(piece -> !downloadedPieces.contains(piece.getIndex()))
                             .toList();
-
-                    System.out.println("Iteration: " + ++iteration);
-                    System.out.println("Pieces to download: " + notDownloadedPieces.size());
 
                     for (PieceStorage piece : notDownloadedPieces) {
                         if (piece.isVerified()) {
@@ -48,14 +38,12 @@ public class FileUtils {
                         }
                     }
 
-                    if (resumeData.getDownloadedPieces(torrentFile)
+                    if (torrentFile.getDownloadedPieces()
                             .size() == pieces.size()) {
                         torrentFile.getMetaData().setState(TorrentState.FINISHED);
                     }
                 }
-                resumeData.sync();
-            }catch (Exception e){
-                System.out.println("Error in fileutils");
+            } catch (Exception e) {
                 e.printStackTrace();
             }
         };
@@ -108,15 +96,9 @@ public class FileUtils {
                     try (RandomAccessFile raf = new RandomAccessFile(filePath, "rw")) {
                         raf.seek(fileRelativeOffset);
                         raf.write(pieceData, bytesWritten, bytesToWrite);
-//                        torrentFile.getInfo()
-//                                .getDownloadedPieces()
-//                                .add(piece.getIndex());
-                        torrentFile.getMetaData().setDownloadedPiece(piece.getIndex());
-                        System.out.println("Downloaded piece with index " + piece.getIndex());
-                        System.out.println("Written to: " + filePath);
+                        torrentFile.getMetaData().updateBitField(piece.getIndex());
 
                     } catch (IOException e) {
-                        System.out.println("Error writing to file: " + filePath);
                         e.printStackTrace();
                     }
 
@@ -138,7 +120,7 @@ public class FileUtils {
         }
 
         if (bytesWritten == pieceData.length) {
-            resumeData.setPiece(torrentFile, piece.getIndex());
+            torrentFile.getMetaData().updateBitField(piece.getIndex());
         }
     }
 

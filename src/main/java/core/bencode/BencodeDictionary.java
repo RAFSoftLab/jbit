@@ -5,6 +5,7 @@ import exceptions.BencodeParseException;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -14,8 +15,25 @@ import java.util.stream.Collectors;
 
 public class BencodeDictionary extends BencodeElement<Map<BencodeString, BencodeElement<?>>> {
 
-    BencodeDictionary(Map<BencodeString, BencodeElement<?>> value) {
+    public BencodeDictionary(Map<BencodeString, BencodeElement<?>> value) {
         super(value);
+    }
+
+    public static BencodeDictionary ofMap(Map<String, ?> dict) {
+        int initialCapacity = Math.max(8, (int)(dict.size() / 0.75f) + 1);
+        Map<BencodeString, BencodeElement<?>> dictMap = new LinkedHashMap<>(initialCapacity);
+
+        for(Map.Entry<String, ?> entry : dict.entrySet()) {
+            String key = entry.getKey();
+            Object value = entry.getValue();
+
+            BencodeString beString = new BencodeString(key,key.getBytes(StandardCharsets.UTF_8));
+
+            dictMap.put(beString,wrap(value));
+
+        }
+
+        return new BencodeDictionary(dictMap);
     }
 
     /**

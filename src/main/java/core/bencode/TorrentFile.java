@@ -1,9 +1,11 @@
 package core.bencode;
 
 import common.TorrentState;
-import core.ResumeTorrentData;
+import core.TorrentMetadata;
 import storage.PieceStorage;
+import util.GlobalConfig;
 
+import java.io.*;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -27,7 +29,7 @@ public class TorrentFile extends BencodeDictionary {
     private final String createdBy;
     private final String encoding;
     private final Info info;
-    private ResumeTorrentData metaData;
+    private TorrentMetadata metaData;
 
     public TorrentFile(BencodeDictionary dictionary) {
         super(dictionary.getValue());
@@ -48,15 +50,33 @@ public class TorrentFile extends BencodeDictionary {
         this.createdBy = dictionary.getAsString(CREATED_BY);
         this.encoding = dictionary.getAsString(ENCODING);
         this.info = new Info((BencodeDictionary) dictionary.get(INFO));
+        this.metaData = new TorrentMetadata(this);
+        createInternalCopy();
     }
 
-    public void setMetaData(ResumeTorrentData metaData) {
+    public void setMetaData(TorrentMetadata metaData) {
         this.metaData = metaData;
         this.info.getPiecesStorage().forEach(pieceStorage -> {
             if (metaData.getBitField().get(pieceStorage.getIndex())) {
                 pieceStorage.setVerified(true);
             }
         });
+    }
+
+
+    private void createInternalCopy() {
+        String fileName = GlobalConfig.APP_DATA + File.separator + this.getInfoHash() + GlobalConfig.TORRENT_SUFFIX;
+        File file = new File(fileName);
+
+        if (file.exists()) {
+            return;
+        }
+
+        try (OutputStream os = new FileOutputStream(file)) {
+            os.write(this.encode());
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
 
@@ -101,7 +121,7 @@ public class TorrentFile extends BencodeDictionary {
         return metaData.getDownloadedPieces();
     }
 
-    public ResumeTorrentData getMetaData(){
+    public TorrentMetadata getMetaData(){
         return metaData;
     }
 

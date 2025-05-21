@@ -134,6 +134,7 @@ public class HandshakeClient {
                 e.printStackTrace();
             } finally {
                 selector.close();
+                this.se.wakeup();
                 System.out.println("Connections established: " + connected + " Iterations: " + iterations);
                 System.out.println("Handshake sent: " + countSent + " Handshake read: " + countRead);
             }

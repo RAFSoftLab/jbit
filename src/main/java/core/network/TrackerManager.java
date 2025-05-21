@@ -1,24 +1,53 @@
 package core.network;
 
+import common.TorrentState;
+import core.PeerConnection;
 import core.bencode.TorrentFile;
+import piece.TorrentManager;
 
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 public class TrackerManager {
 
     private final TrackerClient http;
     private final TrackerClient udp;
-
+    private final ScheduledExecutorService scheduler;
+    private final TorrentManager torrentManager;
     private final Map<TorrentFile, TrackerNetworkRequest> requests = new ConcurrentHashMap<>();
 
-    public TrackerManager() {
+    public TrackerManager(TorrentManager torrentManager) {
         this.http = new HttpTrackerClient();
         this.udp = new UdpTrackerClient();
+        this.scheduler = Executors.newSingleThreadScheduledExecutor();
+        this.torrentManager = torrentManager;
+        execute();
     }
 
+    private void execute() {
+        scheduler.schedule(() -> {
+            try {
+
+                Map<TorrentFile, List<PeerConnection>> torrentPeers = torrentManager.getTorrentPeers();
+
+                for (TorrentFile torrentFile : torrentPeers.keySet()) {
+                    if (torrentFile.getMetaData().getState() == TorrentState.DOWNLOADING) {
+                        List<PeerConnection> peerConnections = torrentPeers.get(torrentFile);
+
+                        if (peerConnections.size() < 3) {
+                            Set<Peer> peers = getAllPeers(torrentFile);
+                            torrentManager.establishConnections(torrentFile, new ArrayList<>(peers));
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }, 10, TimeUnit.SECONDS);
+    }
 
     public Set<Peer> getAllPeers(TorrentFile torrentFile) {
 
