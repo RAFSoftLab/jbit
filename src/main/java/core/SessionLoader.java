@@ -36,6 +36,7 @@ public class SessionLoader {
                         BencodeDictionary decode1 = decoder.decode();
                         TorrentMetadata metadata = TorrentMetadata.of(decode1, torrentFile);
                         torrentFile.setMetaData(metadata);
+                        System.out.println(metadata.getBitField().cardinality());
                     } catch (Exception e) {
                         e.printStackTrace();
                     }

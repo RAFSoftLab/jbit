@@ -6,6 +6,7 @@ import core.bencode.TorrentFile;
 import core.network.Peer;
 import storage.PieceStorage;
 import tasks.*;
+import ui.TorrentEntry;
 import util.FileUtils;
 
 import java.io.IOException;
@@ -21,6 +22,7 @@ import java.util.concurrent.TimeUnit;
 
 public class TorrentManager {
 
+    private static final TorrentManager INSTANCE = new TorrentManager();
     private final Selector selector;
     private final Map<TorrentFile, List<Peer>> torrentPeers;
     private final Map<TorrentFile, List<PeerConnection>> torrentConnections;
@@ -31,7 +33,8 @@ public class TorrentManager {
     private final HandshakeClient handshakeClient;
     private final SessionLoader sessionLoader;
 
-    public TorrentManager() {
+
+    private TorrentManager() {
         try {
             this.selector = Selector.open();
             this.torrentPeers = new ConcurrentHashMap<>();
@@ -42,31 +45,37 @@ public class TorrentManager {
             this.fileUtils = new FileUtils(managedTorrents);
             this.handshakeClient = new HandshakeClient(selector);
             this.sessionLoader = new SessionLoader();
+            init();
         } catch (IOException e) {
             e.printStackTrace();
             throw new RuntimeException(e);
         }
     }
 
+    public static TorrentManager getInstance() {
+        return INSTANCE;
+    }
+
     public void init() {
-        List<TorrentFile> torrentFiles = sessionLoader.onLoad();
-        managedTorrents.addAll(torrentFiles);
-        torrentFiles.forEach(t-> torrentConnections.put(t, new ArrayList<>()));
+        sessionLoader.onLoad().forEach(this::addTorrent);
         executeSelector();
         readTaskWorker.start();
         downloadScheduler.start();
         fileUtils.init();
-
         readTasks();
     }
+
+//    public void registerViewModel(TorrentViewModel viewModel) {
+//        this.torrentViewModel = viewModel;
+//    }
 
     public Map<TorrentFile, List<PeerConnection>> getTorrentPeers() {
         return this.torrentConnections;
     }
 
 
-    public void establishConnections(TorrentFile torrentFile, List<Peer> peers){
-        if(!managedTorrents.contains(torrentFile)){
+    public void establishConnections(TorrentFile torrentFile, List<Peer> peers) {
+        if (!managedTorrents.contains(torrentFile)) {
             throw new IllegalArgumentException(String.format("Torrent with hash: %s not managed", torrentFile.getInfoHash()));
         }
 
@@ -76,7 +85,7 @@ public class TorrentManager {
                 .toList();
         peers.removeAll(activePeers);
 
-        addTorrentConnections(torrentFile,handshakeClient.handshake(peers, torrentFile));
+        addTorrentConnections(torrentFile, handshakeClient.handshake(peers, torrentFile));
     }
 
 
@@ -178,7 +187,8 @@ public class TorrentManager {
                                 try {
                                     key.channel()
                                             .close();
-                                } catch (Exception ignored) {}
+                                } catch (Exception ignored) {
+                                }
                                 key.cancel();
                                 e.printStackTrace();
                             }
@@ -191,7 +201,7 @@ public class TorrentManager {
         this.torrentPeers.put(torrentFile, peers);
     }
 
-    public void addTorrent(TorrentFile torrentFile){
+    public void addTorrent(TorrentFile torrentFile) {
         this.managedTorrents.add(torrentFile);
         this.torrentConnections.put(torrentFile, new ArrayList<>());
     }
@@ -200,9 +210,33 @@ public class TorrentManager {
         return torrentConnections.get(torrentFile);
     }
 
-    public void addTorrentConnections(TorrentFile torrent, List<PeerConnection> connections){
+    public Set<TorrentFile> getManagedTorrents() {
+        return managedTorrents;
+    }
+
+    public void addTorrentConnections(TorrentFile torrent, List<PeerConnection> connections) {
         torrentConnections.get(torrent).addAll(connections);
     }
+
+    public int getAmountOfPeersByTorrent(TorrentFile torrent){
+        if(!managedTorrents.contains(torrent) || !torrentConnections.containsKey(torrent)){
+            return 0;
+        }
+        return torrentConnections.get(torrent).size();
+    }
+
+    public void removeTorrent(TorrentFile torrentFile){
+        if(!managedTorrents.contains(torrentFile)){
+            throw new IllegalArgumentException(String.format("Torrent %s not managed", torrentFile.getInfoHash()));
+        }
+
+        torrentConnections.get(torrentFile).forEach(PeerConnection::terminateConnection);
+        torrentConnections.remove(torrentFile);
+        managedTorrents.remove(torrentFile);
+        torrentPeers.remove(torrentFile);
+        fileUtils.removeTorrent(torrentFile);
+    }
+
     public void readTasks() {
 
         Executors.newSingleThreadScheduledExecutor()
@@ -239,5 +273,9 @@ public class TorrentManager {
                 }, 0, 10, TimeUnit.SECONDS);
 
 
+    }
+
+    public void deleteFromDisk(TorrentFile torrent) {
+        fileUtils.deleteFromDisk(torrent);
     }
 }

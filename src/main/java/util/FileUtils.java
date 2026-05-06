@@ -1,12 +1,15 @@
 package util;
 
 import common.TorrentState;
+import core.TorrentMetadata;
 import core.bencode.TorrentFile;
 import storage.PieceStorage;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.Executors;
@@ -125,4 +128,38 @@ public class FileUtils {
     }
 
 
+    public void removeTorrent(TorrentFile torrentFile) {
+
+        try {
+            TorrentMetadata metadata = torrentFile.getMetaData();
+            Path internalMetadata = metadata.getInternalMetadataPath();
+            Path internalTorrent = metadata.getInternalTorrentPath();
+
+            Files.delete(internalTorrent);
+            Files.delete(internalMetadata);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void deleteFromDisk(TorrentFile torrent) {
+
+        try {
+            if (torrent.getInfo().isMultiFile()) {
+
+                for (TorrentFile.Info.Files fileInfo : torrent.getInfo().getFiles()) {
+                    Path filePath = Path.of(UserConfig.DOWNLOAD_DIR + File.separator + "jbitd" + File.separator + fileInfo.getPath());
+                    if (Files.exists(filePath)){
+                        Files.delete(filePath);
+                    }
+                }
+            } else {
+                Path path =  Path.of(UserConfig.DOWNLOAD_DIR + File.separator + torrent.getInfo().getName());
+                Files.delete(path);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
 }

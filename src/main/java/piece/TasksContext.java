@@ -24,6 +24,11 @@ public class TasksContext {
         }
     }
 
+    public void clear(){
+        readTasks.clear();
+        writeTasks.clear();
+    }
+
     public Task getTask(TaskType taskType) {
         if (taskType == TaskType.WRITE) {
             return writeTasks.poll();

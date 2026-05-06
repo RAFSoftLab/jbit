@@ -125,6 +125,15 @@ public class PeerConnection {
                 .anyMatch(pieceIndex -> bitField.get(pieceIndex));
     }
 
+    public void terminateConnection(){
+        try{
+            channel.close();
+            tasks.clear();
+        }catch (Exception e){
+            e.printStackTrace();
+        }
+    }
+
     public void setPieceIndex(int pieceIndex) {
         bitField.set(pieceIndex);
     }

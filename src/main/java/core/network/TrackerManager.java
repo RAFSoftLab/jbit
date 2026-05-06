@@ -28,10 +28,11 @@ public class TrackerManager {
     }
 
     private void execute() {
-        scheduler.schedule(() -> {
+        scheduler.scheduleAtFixedRate(() -> {
             try {
 
                 Map<TorrentFile, List<PeerConnection>> torrentPeers = torrentManager.getTorrentPeers();
+                System.out.println(torrentPeers.size());
 
                 for (TorrentFile torrentFile : torrentPeers.keySet()) {
                     if (torrentFile.getMetaData().getState() == TorrentState.DOWNLOADING) {
@@ -46,7 +47,7 @@ public class TrackerManager {
             } catch (Exception e) {
                 e.printStackTrace();
             }
-        }, 10, TimeUnit.SECONDS);
+        },0, 60, TimeUnit.SECONDS);
     }
 
     public Set<Peer> getAllPeers(TorrentFile torrentFile) {

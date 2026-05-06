@@ -3,13 +3,18 @@ package core.bencode;
 import common.TorrentState;
 import core.TorrentMetadata;
 import storage.PieceStorage;
+import ui.TorrentEntry;
 import util.GlobalConfig;
 
-import java.io.*;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 public class TorrentFile extends BencodeDictionary {
 
@@ -29,6 +34,7 @@ public class TorrentFile extends BencodeDictionary {
     private final String createdBy;
     private final String encoding;
     private final Info info;
+    private final TorrentEntry torrentEntry;
     private TorrentMetadata metaData;
 
     public TorrentFile(BencodeDictionary dictionary) {
@@ -51,18 +57,13 @@ public class TorrentFile extends BencodeDictionary {
         this.encoding = dictionary.getAsString(ENCODING);
         this.info = new Info((BencodeDictionary) dictionary.get(INFO));
         this.metaData = new TorrentMetadata(this);
+        this.torrentEntry = new TorrentEntry(this);
         createInternalCopy();
     }
 
-    public void setMetaData(TorrentMetadata metaData) {
-        this.metaData = metaData;
-        this.info.getPiecesStorage().forEach(pieceStorage -> {
-            if (metaData.getBitField().get(pieceStorage.getIndex())) {
-                pieceStorage.setVerified(true);
-            }
-        });
+    public TorrentEntry getTorrentEntry() {
+        return this.torrentEntry;
     }
-
 
     private void createInternalCopy() {
         String fileName = GlobalConfig.APP_DATA + File.separator + this.getInfoHash() + GlobalConfig.TORRENT_SUFFIX;
@@ -78,7 +79,6 @@ public class TorrentFile extends BencodeDictionary {
             e.printStackTrace();
         }
     }
-
 
     public Info getInfo() {
         return info;
@@ -110,22 +110,29 @@ public class TorrentFile extends BencodeDictionary {
 
     public boolean isCompleted() {
         TorrentState state = this.metaData.getState();
-        if (state  == null) {
+        if (state == null) {
             //throw new IllegalStateException("Torrent state is null");
             return false;
         }
         return state.equals(TorrentState.FINISHED);
     }
 
-    public Set<Integer> getDownloadedPieces(){
+    public Set<Integer> getDownloadedPieces() {
         return metaData.getDownloadedPieces();
     }
 
-    public TorrentMetadata getMetaData(){
+    public TorrentMetadata getMetaData() {
         return metaData;
     }
 
-
+    public void setMetaData(TorrentMetadata metaData) {
+        this.metaData = metaData;
+        this.info.getPiecesStorage().forEach(pieceStorage -> {
+            if (metaData.getBitField().get(pieceStorage.getIndex())) {
+                pieceStorage.setVerified(true);
+            }
+        });
+    }
 
     public static final class Info {
 
@@ -197,6 +204,28 @@ public class TorrentFile extends BencodeDictionary {
             return pieces;
         }
 
+        public long getTotalLength() {
+            return totalLength;
+        }
+
+        public boolean isMultiFile(){
+            return files != null;
+        }
+
+        public String getTotalSize() {
+            long size = getTotalLength();
+            String[] units = {"B", "KB", "MB", "GB", "TB"};
+
+            int iteration = 0;
+            while (size >= 1024 && iteration < units.length - 1) {
+                size = size / 1024;
+                iteration++;
+            }
+
+            return String.format("%d %s", size, units[iteration]);
+        }
+
+
         public List<PieceStorage> getPiecesStorage() {
             return piecesStorage;
         }
@@ -234,7 +263,7 @@ public class TorrentFile extends BencodeDictionary {
                         .stream()
                         .map(BencodeString.class::cast)
                         .map(BencodeString::getValue)
-                        .reduce("", (a, b) -> a + "/" + b) : null;
+                        .collect(Collectors.joining("/")): null;
             }
 
             public Long getLength() {

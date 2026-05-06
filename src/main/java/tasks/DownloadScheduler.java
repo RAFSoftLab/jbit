@@ -38,14 +38,16 @@ public class DownloadScheduler {
             try {
                 WriteEvent event = events.take();
                 PeerConnection peerConnection = event.getPeerConnection();
-                WriteEvent.EventType eventType = event.getEventType();
+                if (peerConnection != null) {
+                    WriteEvent.EventType eventType = event.getEventType();
 
-                switch (eventType) {
-                    case HAVE_BITFIELD -> addInterestedTask(peerConnection);
-                    case FREE_SPACE, UNCHOKE -> addRequestTask(peerConnection);
-                    case REQUEST -> addUnimplementedTask();
-                    case NOT_INTERESTING -> addUnimplementedTask();
+                    switch (eventType) {
+                        case HAVE_BITFIELD -> addInterestedTask(peerConnection);
+                        case FREE_SPACE, UNCHOKE -> addRequestTask(peerConnection);
+                        case REQUEST -> addUnimplementedTask();
+                        case NOT_INTERESTING -> addUnimplementedTask();
 
+                    }
                 }
             } catch (Exception e) {
                 e.printStackTrace();
@@ -63,7 +65,7 @@ public class DownloadScheduler {
             Message interested = new Interested(peerConnection);
             peerConnection.getTasks()
                     .addTask(new Task(interested.create()
-                                              .array(), TaskType.WRITE, peerConnection));
+                            .array(), TaskType.WRITE, peerConnection));
 
             events.add(new WriteEvent(peerConnection, WriteEvent.EventType.FREE_SPACE));
         }
@@ -76,12 +78,12 @@ public class DownloadScheduler {
     private void addRequestTask(PeerConnection peerConnection) {
         PieceStorage pieceStorage = picker.find(peerConnection.getTorrentFile());
         while (peerConnection.getTasks()
-                .sizeOfWriteTasks() < MAX_WRITE_TASKS  && !peerConnection.getTorrentFile().isCompleted()) {
+                .sizeOfWriteTasks() < MAX_WRITE_TASKS && !peerConnection.getTorrentFile().isCompleted()) {
             try {
                 Message request = new Request(pieceStorage, peerConnection);
                 peerConnection.getTasks()
                         .addTask(new Task(request.create()
-                                                  .array(), TaskType.WRITE, peerConnection));
+                                .array(), TaskType.WRITE, peerConnection));
             } catch (NoAvailableBlock e) {
                 pieceStorage = picker.find(peerConnection.getTorrentFile());
             } catch (Exception e) {
@@ -104,4 +106,6 @@ public class DownloadScheduler {
         running = false;
         thread.interrupt();
     }
+
+
 }

@@ -8,9 +8,15 @@ import core.bencode.TorrentFile;
 import util.GlobalConfig;
 import util.UserConfig;
 
-import java.io.*;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.util.*;
+import java.nio.file.Path;
+import java.util.BitSet;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -25,13 +31,18 @@ public final class TorrentMetadata {
 
     private final BitSet bitField;
     private final String infoHash;
+    private final Path internalMetadataPath;
+    private final Path internalTorrentPath;
     private final int threshold;
     private final Lock lock = new ReentrantLock();
     private final AtomicInteger updateCounter = new AtomicInteger(0);
     private final TorrentFile torrentFile;
+    private final UpDownSpeedTracker downloadSpeed = new UpDownSpeedTracker();
+    private final UpDownSpeedTracker uploadSpeed = new UpDownSpeedTracker();
 
     private TorrentState state;
     private String downloadPath;
+
 
     public TorrentMetadata(TorrentFile torrentFile) {
         this.infoHash = torrentFile.getInfoHash();
@@ -43,6 +54,8 @@ public final class TorrentMetadata {
         this.state = TorrentState.DOWNLOADING;
         this.threshold = calculateThreshold();
         this.downloadPath = UserConfig.DOWNLOAD_DIR;
+        this.internalTorrentPath = createTorrentPath();
+        this.internalMetadataPath = createMetadataPath();
     }
 
     private TorrentMetadata(String infoHash, BitSet bitfield, TorrentState state, String downloadPath, TorrentFile torrentFile) {
@@ -52,6 +65,24 @@ public final class TorrentMetadata {
         this.downloadPath = downloadPath;
         this.torrentFile = torrentFile;
         this.threshold = calculateThreshold();
+        this.internalTorrentPath = createTorrentPath();
+        this.internalMetadataPath = createMetadataPath();
+    }
+
+    private Path createMetadataPath() {
+        return Path.of(GlobalConfig.APP_DATA + File.separator + torrentFile.getInfoHash() + GlobalConfig.RESUME_SUFFIX);
+    }
+
+    private Path createTorrentPath() {
+        return Path.of(GlobalConfig.APP_DATA + File.separator + torrentFile.getInfoHash() + GlobalConfig.TORRENT_SUFFIX);
+    }
+
+    public Path getInternalMetadataPath(){
+        return this.internalMetadataPath;
+    }
+
+    public Path getInternalTorrentPath(){
+        return this.internalTorrentPath;
     }
 
     public static TorrentMetadata of(BencodeDictionary dictionary, TorrentFile torrentFile) {
@@ -69,6 +100,7 @@ public final class TorrentMetadata {
         }
 
     }
+
 
     private int calculateThreshold() {
         return (int) Math.max(1, torrentFile.getInfo()
@@ -90,6 +122,7 @@ public final class TorrentMetadata {
 
     public void setState(TorrentState state) {
         this.state = state;
+        this.torrentFile.getTorrentEntry().stateProperty().set(state.toString());
         sync(0, true);
     }
 
@@ -151,6 +184,11 @@ public final class TorrentMetadata {
         encodeMap.put(DOWNLOAD_PATH_KEY, new BencodeString(downloadPath, downloadPath.getBytes(StandardCharsets.UTF_8)));
         encodeMap.put(BIT_FIELD_KEY, new BencodeString(BIT_FIELD_KEY.getValue(), bitField.toByteArray()));
         return encodeMap;
+    }
+
+
+    public UpDownSpeedTracker getDownloadSpeed(){
+        return downloadSpeed;
     }
 
 

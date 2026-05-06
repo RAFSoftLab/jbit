@@ -36,6 +36,7 @@ public class Piece extends Message {
                 .get(index);
         assert pieceStorage.getIndex() == index;
         pieceStorage.updateBlock(begin, block);
+        peerConnection.getTorrentFile().getMetaData().getDownloadSpeed().record(block.length);
         peerConnection.updateLastPieceReceived();
         return false;
     }
